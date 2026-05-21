@@ -26,6 +26,10 @@
           {
             "type": "command",
             "command": ".claude/hooks/pr-body-closes-check.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/restricted-label-ownership.sh"
           }
         ]
       }

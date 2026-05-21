@@ -11,7 +11,7 @@ See the [Claude Code hooks reference](https://docs.anthropic.com/en/docs/claude-
 | # | File | Type | Trigger | Status |
 |---|------|------|---------|--------|
 | 1 | `no-direct-push-main.sh` | `PreToolUse/Bash` | `git commit` or `git push origin main` while on `main` | **Done — #9** |
-| 2 | `restricted-label-ownership.sh` | `PreToolUse/Bash` | `gh issue edit --add-label` / `--remove-label` for protected labels | Coming soon — #10 |
+| 2 | `restricted-label-ownership.sh` | `PreToolUse/Bash` | `gh issue edit --add-label` / `--remove-label` for protected labels | **Done — #10** |
 | 3 | `pr-merge-requires-in-review.sh` | `PreToolUse/Bash` | `gh pr merge` without `in-review` label | **Done — #11** |
 | 4 | `session-start-doc-check.sh` | `SessionStart` | Session begin | **Done — #12** |
 | 5 | `pr-body-closes-check.sh` | `PreToolUse/Bash` | `gh pr create` with missing `Closes #N` | **Done — #13** |
@@ -117,9 +117,103 @@ Run the self-test whenever you modify the hook script to catch regressions befor
 
 ---
 
-## Hook 2: `restricted-label-ownership.sh` (coming — #10)
+## Hook 2: `restricted-label-ownership.sh`
 
-Blocks `gh issue edit --add-label` / `--remove-label` on protected labels (`prioritized`, `priority:*`, `resolved`, `in-review`, `pm`, `qa`) unless the calling agent is the authorized owner per `label-discipline`.
+**Purpose:** Block `gh issue edit` and `gh pr edit` calls that apply or remove owner-restricted labels unless the calling agent is the declared owner per `label-discipline`.
+
+**Trigger:** `PreToolUse` on tool `Bash`
+
+**Restricted label → authorised agents:**
+
+| Label | Authorised agents |
+|-------|------------------|
+| `prioritized` | `pm-agent` |
+| `priority:high` | `pm-agent` |
+| `priority:medium` | `pm-agent` |
+| `priority:low` | `pm-agent` |
+| `pm` | `pm-agent` |
+| `resolved` | `qa-agent` |
+| `qa` | `qa-agent` |
+| `in-review` | `dev-agent` |
+
+All other labels (`bug`, `enhancement`, `backlog`, `in-progress`, etc.) are unrestricted — any agent may apply them.
+
+**What it blocks:**
+- `gh issue edit <n> --add-label prioritized` from any non-PM agent
+- `gh pr edit <n> --remove-label in-review` from any agent other than dev-agent
+- Any combination of the above
+
+**What it allows:**
+- Owner applying their own label
+- Non-restricted labels (no check performed)
+- Operator direct sessions where `agent_type` is absent in hook stdin (fail-open with WARNING — see §Limitation below)
+- `CLAUDE_HOOK_BYPASS=1` emergency override
+
+**Exit codes:**
+- `0` — allow (silent, or WARNING to stderr when agent identity is absent)
+- `2` — block (Claude Code surfaces stderr to the user)
+
+**Rule this enforces:** `label-discipline` SKILL.md hard rules 2, 3, and 4.
+
+---
+
+### Running the self-test
+
+```bash
+bash .claude/hooks/restricted-label-ownership.sh --self-test
+```
+
+Expected output (all 30 cases green):
+
+```
+=== restricted-label-ownership.sh --self-test ===
+
+--- SHOULD BLOCK (exit 2) ---
+  PASS  dev adds priority:high                                        (block)
+  PASS  dev adds prioritized                                          (block)
+  PASS  qa adds priority:medium                                       (block)
+  PASS  triage adds priority:low                                      (block)
+  PASS  dev adds pm label                                             (block)
+  PASS  dev removes prioritized                                       (block)
+  PASS  dev adds resolved                                             (block)
+  PASS  pm adds resolved                                              (block)
+  PASS  dev adds qa label                                             (block)
+  PASS  pm adds qa label                                              (block)
+  PASS  pm adds in-review                                             (block)
+  PASS  qa adds in-review                                             (block)
+  PASS  triage removes in-review                                      (block)
+  PASS  code-reviewer adds in-review (blocked)                        (block)
+  PASS  code-reviewer removes in-review (blocked)                     (block)
+
+--- SHOULD ALLOW (exit 0) ---
+  PASS  pm adds priority:high (owner)                                 (allow)
+  PASS  pm adds prioritized (owner)                                   (allow)
+  PASS  pm adds priority:medium (owner)                               (allow)
+  PASS  pm adds priority:low (owner)                                  (allow)
+  PASS  pm adds pm label (owner)                                      (allow)
+  PASS  qa adds resolved (owner)                                      (allow)
+  PASS  qa adds qa label (owner)                                      (allow)
+  PASS  dev adds in-review (owner)                                    (allow)
+  PASS  dev adds plain enhancement label                              (allow)
+  PASS  dev adds bug label                                            (allow)
+  PASS  qa adds backlog label                                         (allow)
+  PASS  no agent context adds prioritized (fail-open)                 (allow)
+  PASS  bypass via CLAUDE_HOOK_BYPASS=1                               (allow)
+  PASS  git push (non-gh command, allow)                              (allow)
+  PASS  ls -la (non-gh command, allow)                                (allow)
+
+=== Results: 30 passed, 0 failed ===
+```
+
+---
+
+### Limitation: agent identity
+
+Claude Code sets `agent_type` in the hook stdin JSON **only when running inside a subagent context** (spawned via `--agent` flag or the `Agent` tool). When an operator runs Claude Code directly (no agent wrapper), `agent_type` is absent and the hook **fails open** — it emits a stderr WARNING but allows the label operation through.
+
+This is intentional: operators are trusted principals and can apply any label per the Operator Override Clause in `label-discipline`. The WARNING is a signal to the operator that enforcement was skipped.
+
+**Follow-up:** If full enforcement for all interactive sessions is needed, a separate mechanism (e.g. reading the active agent name from a session env var or settings override) would be required. File an enhancement issue with label `enhancement,backlog` if this gap needs to be closed.
 
 ---
 
