@@ -65,6 +65,15 @@ Behavioral guidelines for code changes — bias toward caution over speed (use j
 - `scripts/` — diagnostic + operational scripts (promote anything you'd run more than once).
 - `Makefile` — common task aliases.
 
+## Project skills & agent playbooks
+
+Two surfaces for capturing what an agent learns on this project — used differently.
+
+- **Agent playbooks** (`docs/playbooks/<agent>.md`) — lightweight per-agent scratchpad. Gotchas, env quirks, "last time I tried X it broke Y." Append freely, delete when stale. Read only by that agent.
+- **Project skills** (`.claude/skills/<skill-name>/SKILL.md`) — a codifiable procedure with a checklist, shared across agents or invoked often enough that drift would hurt. Claude Code auto-discovers anything under `.claude/skills/`; follow the `SKILL.md` frontmatter pattern already used by `label-discipline`, `file-bug-issue`, `worktree-management`.
+
+**Promote-to-skill rule.** If the same multi-step procedure shows up in 2+ playbooks, or one agent has performed it 3+ times the same way, lift it out into `.claude/skills/<name>/SKILL.md`. Until then, leave it in the playbook — skills cost more to author and clutter the available-skills list when overused. The `skill-maintenance` shared skill covers the authoring pattern (frontmatter, line cap, the agent-doc-PR pattern).
+
 ## Slash commands
 
 Run these from the Claude Code prompt:
