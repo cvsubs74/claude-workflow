@@ -121,11 +121,15 @@ d. Wait long enough that the second run is meaningfully independent (at minimum:
      ...
    ```
 
-e. If both runs pass: apply `resolved`, close the issue.
+e. If both runs pass: apply `resolved`. Then check whether the issue is still open.
+
+   - **If the issue is already closed** (GitHub auto-closed it because the PR included `Closes #N`): apply `resolved` and leave the closure state alone. Do not re-open or re-close.
+   - **If the issue is still open** (the PR didn't include `Closes #N`, or auto-close didn't fire): close it now with a comment. You are the backstop — Dev is the primary closer via `Closes #N` in the PR body.
 
    ```bash
    gh issue edit <N> --add-label resolved
-   gh issue close <N> --comment "Verified post-merge — two consecutive passes per §TWO-PASS. Closing."
+   # Only run the next command if the issue is still open:
+   gh issue close <N> --comment "Verified post-merge — two consecutive passes per §TWO-PASS. Closing (backstop: PR did not include Closes #N)."
    ```
 
 f. If either run fails: comment with failure details, ping Dev (or re-open if you already closed prematurely), do NOT apply `resolved`.
