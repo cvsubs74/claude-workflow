@@ -9,5 +9,18 @@
       "Edit(docs/**)",
       "Write(docs/**)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/no-direct-push-main.sh"
+          }
+        ]
+      }
+    ]
   }
 }
