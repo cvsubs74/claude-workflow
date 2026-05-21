@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  shellcheck:
+    name: shellcheck (bin/*.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: ./bin
+
+  bash-syntax:
+    name: bash -n syntax check (bin/*.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check bash syntax
+        run: |
+          fail=0
+          for f in bin/*.sh; do
+            if bash -n "$f"; then
+              echo "OK: $f"
+            else
+              echo "FAIL: $f"
+              fail=1
+            fi
+          done
+          exit "$fail"
+
+  markdown-lint:
+    name: markdownlint (*.md, docs/**/*.md)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint markdown
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            **/*.md
+            !node_modules
+          config: |
+            {
+              "default": true,
+              "line-length": false,
+              "no-inline-html": false,
+              "no-duplicate-heading": false,
+              "single-title": false,
+              "first-line-heading": false
+            }
