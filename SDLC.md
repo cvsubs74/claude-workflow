@@ -114,7 +114,7 @@ cross-flow contract touch points>
 Closes #N  (or Refs #N if this is part of a multi-PR effort)
 ```
 
-Apply `in-review` label (Dev's signal; Code Reviewer watches for it).
+Apply `in-review` label (Dev's signal; Code Reviewer watches for it). PRs must pass CI (shellcheck, bash syntax, markdown lint) before Code Reviewer merges.
 
 ---
 
