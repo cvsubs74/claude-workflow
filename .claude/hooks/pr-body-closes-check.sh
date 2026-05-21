@@ -32,14 +32,7 @@
 # NOTE: Body text may contain literal \n sequences (backslash + n) that represent
 # newlines when rendered — these are normalised before keyword matching.
 #
-# Smoke-test examples:
-#   Warn:  echo '{"tool_name":"Bash","tool_input":{"command":"gh pr create --body \"lorem ipsum\""}}' | bash pr-body-closes-check.sh
-#   Allow: echo '{"tool_name":"Bash","tool_input":{"command":"gh pr create --body \"Closes #5\""}}' | bash pr-body-closes-check.sh
-#   Allow: echo '{"tool_name":"Bash","tool_input":{"command":"gh pr create"}}' | bash pr-body-closes-check.sh
-#   Allow: echo '{"tool_name":"Bash","tool_input":{"command":"git status"}}' | bash pr-body-closes-check.sh
-#
-# Self-test: run with --self-test to verify all cases pass:
-#   bash pr-body-closes-check.sh --self-test
+# Tests live in tests/test_hooks.sh (run via bash tests/run.sh).
 #
 # Operator override: set CLAUDE_HOOK_BYPASS=1 to skip all checks.
 # Rationale: dev-agent.md §5 — "'Closes #N' is mandatory for any PR that
@@ -47,112 +40,6 @@
 
 set -euo pipefail
 
-# ---------------------------------------------------------------------------
-# Self-test mode
-# ---------------------------------------------------------------------------
-if [[ "${1:-}" == "--self-test" ]]; then
-  SCRIPT="$0"
-  PASS=0
-  FAIL=0
-
-  run_case() {
-    local label="$1"
-    local cmd="$2"
-    local expect="$3"   # "warn" or "allow"
-
-    local payload
-    # Use jq -cn --arg so that special characters (quotes, backslashes, etc.)
-    # in $cmd are properly escaped — printf %s interpolation produces invalid
-    # JSON and silently false-greens on commands containing literal double-quotes.
-    payload="$(jq -cn --arg cmd "$cmd" '{"tool_name":"Bash","tool_input":{"command":$cmd}}')"
-
-    local stderr_out
-    stderr_out="$(printf '%s' "$payload" | bash "$SCRIPT" 2>&1 >/dev/null || true)"
-
-    local actual
-    if printf '%s' "$stderr_out" | command grep -q "\[HOOK WARNING\]"; then
-      actual="warn"
-    else
-      actual="allow"
-    fi
-
-    if [[ "$actual" == "$expect" ]]; then
-      printf '  PASS  %-62s  (%s)\n' "$label" "$expect"
-      PASS=$(( PASS + 1 ))
-    else
-      printf '  FAIL  %-62s  expected=%s actual=%s\n' "$label" "$expect" "$actual"
-      if [[ -n "$stderr_out" ]]; then
-        printf '        stderr: %s\n' "$(printf '%s' "$stderr_out" | head -1)"
-      fi
-      FAIL=$(( FAIL + 1 ))
-    fi
-  }
-
-  # Create temp files for --body-file tests
-  TMP_WITH_CLOSES="$(mktemp)"
-  TMP_WITHOUT_CLOSES="$(mktemp)"
-  TMP_NONEXISTENT="/tmp/pr-body-closes-check-nonexistent-$$"
-
-  printf 'Closes #42\nSome body text\n' > "$TMP_WITH_CLOSES"
-  printf 'This is a PR without a closes reference\n' > "$TMP_WITHOUT_CLOSES"
-
-  # Ensure nonexistent file truly doesn't exist
-  rm -f "$TMP_NONEXISTENT"
-
-  echo "=== pr-body-closes-check.sh --self-test ==="
-  echo ""
-  echo "--- SHOULD ALLOW (no warning, exit 0) ---"
-
-  run_case 'gh pr create --body "Closes #5"' \
-    'gh pr create --body "Closes #5"' "allow"
-  run_case 'gh pr create --body "Fixes #5"' \
-    'gh pr create --body "Fixes #5"' "allow"
-  run_case 'gh pr create --body "Resolves #5"' \
-    'gh pr create --body "Resolves #5"' "allow"
-  run_case 'gh pr create --body "Close #5"' \
-    'gh pr create --body "Close #5"' "allow"
-  run_case 'gh pr create --body "Fix #5"' \
-    'gh pr create --body "Fix #5"' "allow"
-  run_case 'gh pr create --body "Resolve #5"' \
-    'gh pr create --body "Resolve #5"' "allow"
-  run_case 'gh pr create --body "closes #5" (lowercase)' \
-    'gh pr create --body "closes #5"' "allow"
-  run_case 'gh pr create --body "CLOSES #5" (uppercase)' \
-    'gh pr create --body "CLOSES #5"' "allow"
-  run_case 'gh pr create --body multiline (literal \n) with Closes #5' \
-    'gh pr create --body "## Summary\n- thing\n\nCloses #5"' "allow"
-  run_case 'gh pr create (interactive, no body flag)' \
-    'gh pr create' "allow"
-  run_case 'gh pr create --draft (no body flag)' \
-    'gh pr create --draft' "allow"
-  run_case 'gh pr create --body-file with Closes #N' \
-    "gh pr create --body-file $TMP_WITH_CLOSES" "allow"
-  run_case 'gh pr create --body-file nonexistent (allow through)' \
-    "gh pr create --body-file $TMP_NONEXISTENT" "allow"
-  run_case 'cd /tmp && gh pr create --body "Closes #5" (compound cmd)' \
-    'cd /tmp && gh pr create --body "Closes #5"' "allow"
-  CLAUDE_HOOK_BYPASS=1 run_case 'bypass via CLAUDE_HOOK_BYPASS=1' \
-    'gh pr create --body "lorem ipsum"' "allow"
-  run_case 'git status (non-gh command)' \
-    'git status' "allow"
-
-  echo ""
-  echo "--- SHOULD WARN (missing auto-close keyword, exit 0) ---"
-
-  run_case 'gh pr create --body "lorem ipsum"' \
-    'gh pr create --body "lorem ipsum"' "warn"
-  run_case 'gh pr create --body "refs #5" (refs is not auto-close)' \
-    'gh pr create --body "refs #5"' "warn"
-  run_case 'gh pr create --body-file without Closes #N' \
-    "gh pr create --body-file $TMP_WITHOUT_CLOSES" "warn"
-
-  # Cleanup temp files
-  rm -f "$TMP_WITH_CLOSES" "$TMP_WITHOUT_CLOSES"
-
-  echo ""
-  echo "=== Results: ${PASS} passed, ${FAIL} failed ==="
-  [[ "$FAIL" -eq 0 ]] && exit 0 || exit 1
-fi
 
 # ---------------------------------------------------------------------------
 # Normal hook mode

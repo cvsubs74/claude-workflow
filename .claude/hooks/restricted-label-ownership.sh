@@ -53,8 +53,7 @@
 #     echo '{"tool_name":"Bash","tool_input":{"command":"gh issue edit 5 --add-label prioritized"}}' \
 #       | bash restricted-label-ownership.sh
 #
-# Self-test: run with --self-test to verify all cases pass:
-#   bash restricted-label-ownership.sh --self-test
+# Tests live in tests/test_hooks.sh (run via bash tests/run.sh).
 #
 # Operator override: set CLAUDE_HOOK_BYPASS=1 to skip all checks.
 # See .claude/hooks/README.md for full escape-hatch documentation.
@@ -83,109 +82,6 @@ get_label_owners() {
   esac
 }
 
-# ---------------------------------------------------------------------------
-# Self-test mode
-# ---------------------------------------------------------------------------
-if [[ "${1:-}" == "--self-test" ]]; then
-  SCRIPT="$0"
-  PASS=0
-  FAIL=0
-
-  run_case() {
-    local label="$1"
-    local cmd="$2"
-    local agent_type="$3"    # empty string = no agent context
-    local expect="$4"        # "block" or "allow"
-
-    local payload
-    if [[ -n "$agent_type" ]]; then
-      payload="$(jq -cn --arg cmd "$cmd" --arg agent "$agent_type" \
-        '{"tool_name":"Bash","tool_input":{"command":$cmd},"agent_type":$agent}')"
-    else
-      payload="$(jq -cn --arg cmd "$cmd" \
-        '{"tool_name":"Bash","tool_input":{"command":$cmd}}')"
-    fi
-
-    local exit_code=0
-    printf '%s' "$payload" | bash "$SCRIPT" >/dev/null 2>&1 || exit_code=$?
-
-    local actual
-    if [[ "$exit_code" -eq 2 ]]; then
-      actual="block"
-    else
-      actual="allow"
-    fi
-
-    if [[ "$actual" == "$expect" ]]; then
-      printf '  PASS  %-60s  (%s)\n' "$label" "$expect"
-      PASS=$(( PASS + 1 ))
-    else
-      printf '  FAIL  %-60s  expected=%s actual=%s\n' "$label" "$expect" "$actual"
-      FAIL=$(( FAIL + 1 ))
-    fi
-  }
-
-  echo "=== restricted-label-ownership.sh --self-test ==="
-  echo ""
-  echo "--- SHOULD BLOCK (exit 2) ---"
-
-  # PM-only labels — non-PM agents blocked
-  run_case "dev adds priority:high"                       "gh issue edit 5 --add-label priority:high"        "dev-agent"              "block"
-  run_case "dev adds prioritized"                         "gh issue edit 5 --add-label prioritized"          "dev-agent"              "block"
-  run_case "qa adds priority:medium"                      "gh issue edit 5 --add-label priority:medium"      "qa-agent"               "block"
-  run_case "triage adds priority:low"                     "gh issue edit 5 --add-label priority:low"         "triage-agent"           "block"
-  run_case "dev adds pm label"                            "gh issue edit 5 --add-label pm"                   "dev-agent"              "block"
-  run_case "dev removes prioritized"                      "gh issue edit 5 --remove-label prioritized"       "dev-agent"              "block"
-
-  # QA-only labels — non-QA agents blocked
-  run_case "dev adds resolved"                            "gh issue edit 5 --add-label resolved"             "dev-agent"              "block"
-  run_case "pm adds resolved"                             "gh issue edit 5 --add-label resolved"             "pm-agent"               "block"
-  run_case "dev adds qa label"                            "gh issue edit 5 --add-label qa"                   "dev-agent"              "block"
-  run_case "pm adds qa label"                             "gh pr edit 5 --add-label qa"                      "pm-agent"               "block"
-
-  # in-review — dev-agent only (CR does NOT have apply/remove authority)
-  run_case "pm adds in-review"                            "gh issue edit 5 --add-label in-review"            "pm-agent"               "block"
-  run_case "qa adds in-review"                            "gh pr edit 5 --add-label in-review"               "qa-agent"               "block"
-  run_case "triage removes in-review"                     "gh pr edit 5 --remove-label in-review"            "triage-agent"           "block"
-  run_case "code-reviewer adds in-review (blocked)"       "gh pr edit 5 --add-label in-review"               "code-reviewer-agent"    "block"
-  run_case "code-reviewer removes in-review (blocked)"    "gh pr edit 5 --remove-label in-review"            "code-reviewer-agent"    "block"
-
-  echo ""
-  echo "--- SHOULD ALLOW (exit 0) ---"
-
-  # PM adding its own labels
-  run_case "pm adds priority:high (owner)"                "gh issue edit 5 --add-label priority:high"        "pm-agent"               "allow"
-  run_case "pm adds prioritized (owner)"                  "gh issue edit 5 --add-label prioritized"          "pm-agent"               "allow"
-  run_case "pm adds priority:medium (owner)"              "gh issue edit 5 --add-label priority:medium"      "pm-agent"               "allow"
-  run_case "pm adds priority:low (owner)"                 "gh issue edit 5 --add-label priority:low"         "pm-agent"               "allow"
-  run_case "pm adds pm label (owner)"                     "gh issue edit 5 --add-label pm"                   "pm-agent"               "allow"
-
-  # QA adding its own labels
-  run_case "qa adds resolved (owner)"                     "gh issue edit 5 --add-label resolved"             "qa-agent"               "allow"
-  run_case "qa adds qa label (owner)"                     "gh issue edit 5 --add-label qa"                   "qa-agent"               "allow"
-
-  # Dev adding in-review (only dev-agent is authorised)
-  run_case "dev adds in-review (owner)"                   "gh pr edit 5 --add-label in-review"               "dev-agent"              "allow"
-
-  # Unrestricted labels — anyone may apply
-  run_case "dev adds plain enhancement label"             "gh issue edit 5 --add-label enhancement"          "dev-agent"              "allow"
-  run_case "dev adds bug label"                           "gh issue edit 5 --add-label bug"                  "dev-agent"              "allow"
-  run_case "qa adds backlog label"                        "gh issue edit 5 --add-label backlog"              "qa-agent"               "allow"
-
-  # No agent context — fail open (operator direct session)
-  run_case "no agent context adds prioritized (fail-open)" "gh issue edit 5 --add-label prioritized"        ""                       "allow"
-
-  # CLAUDE_HOOK_BYPASS=1
-  CLAUDE_HOOK_BYPASS=1 run_case "bypass via CLAUDE_HOOK_BYPASS=1" "gh issue edit 5 --add-label prioritized" "dev-agent"              "allow"
-
-  # Non-gh commands should not be affected
-  run_case "git push (non-gh command, allow)"             "git push origin feat/10"                          "dev-agent"              "allow"
-  run_case "ls -la (non-gh command, allow)"               "ls -la"                                           "dev-agent"              "allow"
-
-  echo ""
-  echo "=== Results: ${PASS} passed, ${FAIL} failed ==="
-  [[ "$FAIL" -eq 0 ]] && exit 0 || exit 1
-fi
 
 # ---------------------------------------------------------------------------
 # Normal hook mode

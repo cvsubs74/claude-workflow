@@ -46,3 +46,17 @@ jobs:
             **/*.md
             !node_modules
           config: .markdownlint.json
+
+  hook-tests:
+    name: hook tests (tests/run.sh)
+    # Only on pull_request: Hook 1's commit-guard reads real git state, so
+    # running on `main` would fail one allow-case. PRs are checked out on the
+    # feature branch — the correct context.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install jq
+        run: sudo apt-get install -y jq
+      - name: Run tests
+        run: bash tests/run.sh

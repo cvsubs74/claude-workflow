@@ -17,14 +17,7 @@
 #   0  — allow (silent)
 #   2  — block (Claude Code surfaces stderr to the user)
 #
-# Smoke-test examples:
-#   Block:   echo '{"tool_name":"Bash","tool_input":{"command":"git push origin main"}}' | bash no-direct-push-main.sh
-#   Block:   echo '{"tool_name":"Bash","tool_input":{"command":"git push origin HEAD:main"}}' | bash no-direct-push-main.sh
-#   Block:   echo '{"tool_name":"Bash","tool_input":{"command":"git commit -m \"fix\""}}' | bash no-direct-push-main.sh
-#   Allow:   echo '{"tool_name":"Bash","tool_input":{"command":"git push origin feat/9-my-branch"}}' | bash no-direct-push-main.sh
-#
-# Self-test: run with --self-test to verify all cases pass:
-#   bash no-direct-push-main.sh --self-test
+# Tests live in tests/test_hooks.sh (run via bash tests/run.sh).
 #
 # Operator override: set CLAUDE_HOOK_BYPASS=1 to skip all checks.
 # Protected-branch list: set CLAUDE_HOOK_PROTECTED_BRANCHES="main master develop"
@@ -33,88 +26,6 @@
 
 set -euo pipefail
 
-# ---------------------------------------------------------------------------
-# Self-test mode
-# ---------------------------------------------------------------------------
-if [[ "${1:-}" == "--self-test" ]]; then
-  SCRIPT="$0"
-  PASS=0
-  FAIL=0
-
-  run_case() {
-    local label="$1"
-    local cmd="$2"
-    local expect="$3"   # "block" or "allow"
-
-    local payload
-    # Use jq to build the JSON so that special characters (double quotes, etc.)
-    # in $cmd are properly escaped — printf %s would produce invalid JSON for
-    # commands that contain literal double-quote characters.
-    payload="$(jq -cn --arg cmd "$cmd" '{"tool_name":"Bash","tool_input":{"command":$cmd}}')"
-
-    local exit_code=0
-    printf '%s' "$payload" | bash "$SCRIPT" >/dev/null 2>&1 || exit_code=$?
-
-    local actual
-    if [[ "$exit_code" -eq 2 ]]; then
-      actual="block"
-    else
-      actual="allow"
-    fi
-
-    if [[ "$actual" == "$expect" ]]; then
-      printf '  PASS  %-55s  (%s)\n' "$label" "$expect"
-      PASS=$(( PASS + 1 ))
-    else
-      printf '  FAIL  %-55s  expected=%s actual=%s\n' "$label" "$expect" "$actual"
-      FAIL=$(( FAIL + 1 ))
-    fi
-  }
-
-  echo "=== no-direct-push-main.sh --self-test ==="
-  echo ""
-  echo "--- SHOULD BLOCK (exit 2) ---"
-
-  # Basic forms (already worked before)
-  run_case "git push origin main"                  "git push origin main"                   "block"
-  run_case "git push origin master"                "git push origin master"                 "block"
-  run_case "git push --force origin main"          "git push --force origin main"           "block"
-  run_case "git push -f origin main"               "git push -f origin main"                "block"
-  run_case "git push -u origin main"               "git push -u origin main"                "block"
-
-  # Refspec bypass forms (CR finding — previously allowed)
-  run_case "git push origin HEAD:main"             "git push origin HEAD:main"              "block"
-  run_case "git push origin refs/heads/main"       "git push origin refs/heads/main"        "block"
-  run_case "git push origin main:main"             "git push origin main:main"              "block"
-  run_case "git push origin +main"                 "git push origin +main"                  "block"
-  run_case "git push origin :main  (delete remote)" "git push origin :main"                "block"
-  run_case "git push origin +main:main"            "git push origin +main:main"             "block"
-  run_case "git push origin +refs/heads/main"      "git push origin +refs/heads/main"       "block"
-  run_case "git push origin HEAD:refs/heads/main"  "git push origin HEAD:refs/heads/main"   "block"
-
-  # Quoted-arg bypass forms (CR finding — previously allowed because tokenizer
-  # kept literal quote chars, so "'origin'" != "origin")
-  run_case "git push 'origin' 'main'  (single-quoted args)"        "git push 'origin' 'main'"              "block"
-  run_case "git push \"origin\" \"main\"  (double-quoted args)"     'git push "origin" "main"'              "block"
-  run_case "git push 'origin' 'HEAD:main'  (quoted + refspec)"     "git push 'origin' 'HEAD:main'"         "block"
-  run_case "git push \"origin\" \"HEAD:refs/heads/main\"  (quoted)" 'git push "origin" "HEAD:refs/heads/main"' "block"
-
-  echo ""
-  echo "--- SHOULD ALLOW (exit 0) ---"
-
-  run_case "git push origin feat/9-branch"         "git push origin feat/9-branch"          "allow"
-  run_case "git push origin mainline  (no false positive)" "git push origin mainline"        "allow"
-  run_case "git push origin feat/main-fix  (contains main)" "git push origin feat/main-fix" "allow"
-  run_case "git push upstream main  (different remote)" "git push upstream main"             "allow"
-  run_case "git push 'origin' 'feat/x'  (quoted, allowed branch)" "git push 'origin' 'feat/x'"  "allow"
-  run_case "git commit -m fix  (on feature branch)" "git commit -m fix"                     "allow"
-  run_case "ls -la  (non-git command)"             "ls -la"                                 "allow"
-  CLAUDE_HOOK_BYPASS=1 run_case "bypass via CLAUDE_HOOK_BYPASS=1" "git push origin main"    "allow"
-
-  echo ""
-  echo "=== Results: ${PASS} passed, ${FAIL} failed ==="
-  [[ "$FAIL" -eq 0 ]] && exit 0 || exit 1
-fi
 
 # ---------------------------------------------------------------------------
 # Normal hook mode
