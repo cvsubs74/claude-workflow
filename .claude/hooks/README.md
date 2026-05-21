@@ -134,13 +134,13 @@ Run the self-test whenever you modify the hook script to catch regressions befor
 | `pm` | `pm-agent` |
 | `resolved` | `qa-agent` |
 | `qa` | `qa-agent` |
-| `in-review` | `dev-agent`, `code-reviewer-agent` |
+| `in-review` | `dev-agent` |
 
 All other labels (`bug`, `enhancement`, `backlog`, `in-progress`, etc.) are unrestricted — any agent may apply them.
 
 **What it blocks:**
 - `gh issue edit <n> --add-label prioritized` from any non-PM agent
-- `gh pr edit <n> --remove-label in-review` from any agent other than dev or code-reviewer
+- `gh pr edit <n> --remove-label in-review` from any agent other than dev-agent
 - Any combination of the above
 
 **What it allows:**
@@ -182,6 +182,8 @@ Expected output (all 30 cases green):
   PASS  pm adds in-review                                             (block)
   PASS  qa adds in-review                                             (block)
   PASS  triage removes in-review                                      (block)
+  PASS  code-reviewer adds in-review (blocked)                        (block)
+  PASS  code-reviewer removes in-review (blocked)                     (block)
 
 --- SHOULD ALLOW (exit 0) ---
   PASS  pm adds priority:high (owner)                                 (allow)
@@ -192,8 +194,6 @@ Expected output (all 30 cases green):
   PASS  qa adds resolved (owner)                                      (allow)
   PASS  qa adds qa label (owner)                                      (allow)
   PASS  dev adds in-review (owner)                                    (allow)
-  PASS  code-reviewer adds in-review (owner)                          (allow)
-  PASS  code-reviewer removes in-review (owner)                       (allow)
   PASS  dev adds plain enhancement label                              (allow)
   PASS  dev adds bug label                                            (allow)
   PASS  qa adds backlog label                                         (allow)
