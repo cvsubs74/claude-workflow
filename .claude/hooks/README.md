@@ -13,7 +13,7 @@ See the [Claude Code hooks reference](https://docs.anthropic.com/en/docs/claude-
 | 1 | `no-direct-push-main.sh` | `PreToolUse/Bash` | `git commit` or `git push origin main` while on `main` | **Done — #9** |
 | 2 | `restricted-label-ownership.sh` | `PreToolUse/Bash` | `gh issue edit --add-label` / `--remove-label` for protected labels | Coming soon — #10 |
 | 3 | `pr-merge-requires-in-review.sh` | `PreToolUse/Bash` | `gh pr merge` without `in-review` label | Coming soon — #11 |
-| 4 | `session-start-sanity-check.sh` | `SessionStart` | Session begin | Coming soon — #12 |
+| 4 | `session-start-doc-check.sh` | `SessionStart` | Session begin | **Done — #12** |
 | 5 | `pr-body-closes-ref.sh` | `PreToolUse/Bash` | `gh pr create` with missing `Closes #N` | Coming soon — #13 |
 
 ---
@@ -129,9 +129,66 @@ Blocks `gh pr merge` if the PR does not carry the `in-review` label. Prevents se
 
 ---
 
-## Hook 4: `session-start-sanity-check.sh` (coming — #12)
+## Hook 4: `session-start-doc-check.sh` — Done (#12)
 
-On `SessionStart`, asserts that `CLAUDE.md`, `SDLC.md`, and `ETHOS.md` exist in the repo root. Surfaces a warning (not a block) if any are missing, so the agent knows to propose creating them before acting.
+**Purpose:** Sanity-check that required cold-start docs exist in the repo root at session start. Surfaces a warning (not a block) if any required doc is missing, so the agent knows to propose creating it before acting.
+
+**Trigger:** `SessionStart` event — fires once per Claude Code session, before the agent takes any action.
+
+**Event type: SessionStart**
+
+`SessionStart` is a different hook event type from `PreToolUse`. It fires once when Claude Code starts a new session, not on each tool call. Its JSON stdin payload contains session metadata (e.g. `session_id`, `transcript_path`) rather than tool input. It is registered under the top-level `SessionStart` key in `.claude/settings.json` (NOT inside `PreToolUse`), and does not use a `matcher` field.
+
+```json
+"hooks": {
+  "SessionStart": [
+    {
+      "hooks": [
+        { "type": "command", "command": ".claude/hooks/session-start-doc-check.sh" }
+      ]
+    }
+  ]
+}
+```
+
+**Required docs checked:**
+- `CLAUDE.md` — agent operating instructions (required)
+- `ETHOS.md` — the three principles that override all defaults (required)
+- `SDLC.md` — branch naming, PR workflow, label scheme (required)
+- `docs/ARCHITECTURE.md` — system shape + change log (optional; informational note if absent)
+
+**This hook NEVER BLOCKS.** Exit code is always 0. Blocking `SessionStart` would brick every session. The hook is a warning surface only.
+
+**Exit codes:**
+- `0` — always
+
+**Test-root override (for self-test and CI):**
+- `--test-root <dir>` flag, or `CLAUDE_HOOK_TEST_ROOT=<dir>` env var — use `<dir>` as the repo root instead of `$PWD`. Flag takes precedence over env var.
+
+### Running the self-test
+
+```bash
+bash .claude/hooks/session-start-doc-check.sh --self-test
+```
+
+Expected output (all 7 cases green):
+
+```
+=== session-start-doc-check.sh --self-test ===
+
+--- REQUIRED FILES PRESENT / ABSENT ---
+  PASS  all required files present — no warnings
+  PASS  ETHOS.md missing — warning for ETHOS.md
+  PASS  SDLC.md missing — warning for SDLC.md
+  PASS  CLAUDE.md missing — warning for CLAUDE.md
+  PASS  all three required missing — three warnings
+  PASS  docs/ARCHITECTURE.md missing alone — info note not warning
+
+--- BYPASS ---
+  PASS  CLAUDE_HOOK_BYPASS=1 — silent regardless of missing files
+
+=== Results: 7 passed, 0 failed ===
+```
 
 ---
 
@@ -155,7 +212,7 @@ This is an **ops-emergency escape hatch only** — for security hotfixes, post-i
 
 ## How hooks are registered
 
-Hooks are registered in `.claude/settings.json` under a `hooks` key. Example:
+Hooks are registered in `.claude/settings.json` under a `hooks` key. Different event types use different top-level keys. Example showing both `PreToolUse` and `SessionStart`:
 
 ```json
 {
@@ -167,12 +224,26 @@ Hooks are registered in `.claude/settings.json` under a `hooks` key. Example:
           { "type": "command", "command": ".claude/hooks/no-direct-push-main.sh" }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/session-start-doc-check.sh" }
+        ]
+      }
     ]
   }
 }
 ```
 
-Claude Code passes a JSON object to the hook's stdin containing the tool name and input. The hook reads it, decides allow/block, and exits with 0 or 2.
+**Key differences by event type:**
+
+| Event | `matcher` field | stdin payload | Exit 2 = block? |
+|-------|----------------|---------------|-----------------|
+| `PreToolUse` | Required — matches the tool name (e.g. `"Bash"`) | `{"tool_name":"...","tool_input":{...}}` | Yes — blocks the tool call |
+| `SessionStart` | Not used | `{"session_id":"...","transcript_path":"..."}` | No — must always exit 0 |
+
+Claude Code passes a JSON object to the hook's stdin. For `PreToolUse`, the hook reads the command, decides allow/block, and exits with 0 or 2. For `SessionStart`, the hook must always exit 0 — blocking would brick the session.
 
 ---
 
