@@ -153,6 +153,10 @@ Before requesting review:
 
 ### 5. Open the PR
 
+**`Closes #N` is mandatory** for any PR that fully resolves a tracking issue. GitHub auto-closes the issue on merge when the PR body contains `Closes #<N>`. Omitting it leaves the issue silently open. (Confirmed in smoke test: PR #3 auto-closed issue #2 the moment it merged because `Closes #2` was in the body.)
+
+Use `Refs #N` instead of `Closes #N` only when this PR is a partial slice of a multi-PR effort — the umbrella issue should stay open until the final slice.
+
 ```bash
 gh pr create --title "<type>(<scope>): <summary>" --body "$(cat <<'EOF'
 ## Summary
@@ -216,6 +220,7 @@ When in doubt: file it. The backlog is the right inbox; PM will reject if it's n
 - **Picking up a `backlog`-labeled issue.** That's PM's queue. Picking up bypasses prioritization.
 - **Applying `prioritized` or `priority:*` to your own issues.** PM owns those. File with `backlog` and walk away.
 - **Skipping the design doc on user-facing work.** A PR without a design doc to point at is harder to review and harder to maintain.
+- **Omitting `Closes #N` from the PR body when you own the tracking issue.** Without it, GitHub will NOT auto-close the issue on merge — it silently stays open. QA or Triage may catch it as a backstop, but Dev is the primary closer.
 - **Closing your own PR with `Closes #<N>` on a slice.** If this PR is part of a multi-PR effort, use `Refs #<N>` — only the FINAL slice uses `Closes`.
 - **Merging your own PR.** Code Reviewer merges. Always.
 

@@ -94,6 +94,8 @@ Never use `Closes` on a slice that doesn't finish the issue — it strands the r
 
 **PR title** mirrors the commit summary.
 
+**PR body must include `Closes #<issue>` so GitHub auto-closes the tracking issue on merge.** Use `Refs #<issue>` only when this PR is a partial slice and the issue should stay open.
+
 **PR body template:**
 
 ```markdown
