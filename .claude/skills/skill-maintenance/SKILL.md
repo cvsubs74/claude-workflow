@@ -5,7 +5,7 @@ description: "How to update an agent's own role file or a shared skill — the a
 
 # Skill Maintenance — Editing Agent Files and Shared Skills
 
-The agent files (`.claude/agents/<role>-agent.md`) and shared skills (`.claude/skills/_shared/<name>/SKILL.md`) ARE the operating contract. When you discover a pattern that works (or an anti-pattern that bites you), the right response is often to edit the contract so the next session benefits.
+The agent files (`.claude/agents/<role>-agent.md`) and shared skills (`.claude/skills/<name>/SKILL.md`) ARE the operating contract. When you discover a pattern that works (or an anti-pattern that bites you), the right response is often to edit the contract so the next session benefits.
 
 This skill is the protocol for doing that safely.
 
@@ -32,7 +32,7 @@ This skill is the protocol for doing that safely.
 
 Skill / agent file edits go through a normal PR, just like code:
 
-1. **Worktree.** Create a worktree per `.claude/skills/_shared/worktree-management/SKILL.md`.
+1. **Worktree.** Create a worktree per `.claude/skills/worktree-management/SKILL.md`.
 
 2. **Branch.** `docs/skill-<short-slug>` or `docs/agent-<short-slug>`.
 
@@ -52,7 +52,7 @@ Agent files and shared skills should be **readable end-to-end in one sitting**. 
 
 If you're about to push an agent file over 700 lines:
 
-- **Extract a shared skill.** Move the largest single section to `.claude/skills/_shared/<name>/SKILL.md` and reference it from the agent file.
+- **Extract a shared skill.** Move the largest single section to `.claude/skills/<name>/SKILL.md` and reference it from the agent file.
 - **Look for duplication across agents.** If three agents have similar "how to file an issue" sections, that's a shared skill.
 - **Delete examples that no longer represent the current state.** "Here's how we used to do X" is not a contract; it's archaeology.
 
@@ -60,13 +60,13 @@ If you're about to push an agent file over 700 lines:
 
 ## Cross-reference, don't duplicate
 
-When two agents need the same rule (e.g., the label table), one of them carries the canonical version (or it lives under `_shared/`) and the others reference it:
+When two agents need the same rule (e.g., the label table), one of them carries the canonical version (or it lives as its own skill under `.claude/skills/<name>/`) and the others reference it:
 
 ```markdown
 ## Label authority
 
 - Apply: `bug`, `qa`, `enhancement,backlog`
-- See `.claude/skills/_shared/label-discipline/SKILL.md` for full label table.
+- See `.claude/skills/label-discipline/SKILL.md` for full label table.
 ```
 
 Never inline the same table in two files. When it changes, you'll update one and forget the other.
@@ -83,7 +83,7 @@ Never inline the same table in two files. When it changes, you'll update one and
 | The agent's cold-start anchor | Anything referenced by 2+ agents |
 | Agent-specific anti-patterns | Patterns multiple agents share |
 
-When in doubt: if you'd reference it from a second agent's file, it belongs under `_shared/`.
+When in doubt: if you'd reference it from a second agent's file, it belongs as its own skill under `.claude/skills/`.
 
 ---
 
@@ -92,5 +92,5 @@ When in doubt: if you'd reference it from a second agent's file, it belongs unde
 - **Editing a contract to match a one-off incident.** Wait until the pattern recurs before codifying.
 - **Adding rules without a failure mode.** Every rule should have "this prevents X" in its motivation.
 - **Letting line count creep.** A 1200-line agent file is unread.
-- **Inlining tables that already exist under `_shared/`.** Always reference.
+- **Inlining tables that already exist as a shared skill.** Always reference.
 - **Renaming sections without updating cross-references.** Use `grep -r "§SECTION-NAME" .claude/` before merging.

@@ -57,7 +57,7 @@ That's it. The Team Lead will read `CLAUDE.md`, anchor on recent state, and acce
 │   │   ├── code-reviewer-agent.md
 │   │   ├── devops-agent.md
 │   │   └── designer-agent.md
-│   ├── skills/_shared/           # Cross-agent reference skills
+│   ├── skills/                   # Cross-agent reference skills
 │   │   ├── label-discipline/SKILL.md
 │   │   ├── system-role-boundaries/SKILL.md
 │   │   ├── file-bug-issue/SKILL.md
@@ -133,7 +133,7 @@ Inspired by gstack's sprint methodology — every change flows through these sta
 2. **Edit CLAUDE.md.** Add a one-paragraph "architecture in one paragraph" specific to your stack. Add your real `Common commands` block (test, dev server, deploy).
 3. **Edit SDLC.md.** Adjust label scheme if your team uses different labels. Pin your branch naming convention.
 4. **Trim agents you don't need.** A solo project might not need a separate Designer or DevOps agent — delete those files.
-5. **Add project-specific shared skills.** As patterns emerge (deploy chain, tenant routing, etc.), add them under `.claude/skills/_shared/<name>/SKILL.md` and reference from agent files.
+5. **Add project-specific shared skills.** As patterns emerge (deploy chain, tenant routing, etc.), add them under `.claude/skills/<name>/SKILL.md` and reference from agent files.
 
 ---
 

@@ -69,7 +69,7 @@ Dev → Code Reviewer → DevOps (deploy) → QA (post-merge verify, resolved)
 
 **Team Lead applies NO labels.** It coordinates the agents who own labels.
 
-See `.claude/skills/_shared/label-discipline/SKILL.md` for the canonical label definitions and full filing rules (do not duplicate the table here).
+See `.claude/skills/label-discipline/SKILL.md` for the canonical label definitions and full filing rules (do not duplicate the table here).
 
 ---
 

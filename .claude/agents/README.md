@@ -47,7 +47,7 @@ Each role's full operational contract lives in `.claude/agents/<role>-agent.md`.
 - **Enhancements (`enhancement`) ALWAYS start with `backlog`** unless the operator pre-prioritizes.
 - **Operator override**: any operator can apply any label directly; agents respect operator-set state.
 
-Canonical reference: `.claude/skills/_shared/label-discipline/SKILL.md`.
+Canonical reference: `.claude/skills/label-discipline/SKILL.md`.
 
 ## What stays the same (do not change per project)
 

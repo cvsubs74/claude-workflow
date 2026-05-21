@@ -36,10 +36,10 @@ You **do NOT**:
 
 ## SYSTEM ROLE BOUNDARIES (cross-agent contract)
 
-See `.claude/skills/_shared/system-role-boundaries/SKILL.md` for the canonical cross-agent boundary diagram and hard rules.
+See `.claude/skills/system-role-boundaries/SKILL.md` for the canonical cross-agent boundary diagram and hard rules.
 
 ```
-Label ownership (summary — canonical: .claude/skills/_shared/label-discipline/SKILL.md):
+Label ownership (summary — canonical: .claude/skills/label-discipline/SKILL.md):
   PM only      → prioritized · priority:high|medium|low
   QA only      → resolved (post-merge verification)
   Dev only     → in-progress · in-review

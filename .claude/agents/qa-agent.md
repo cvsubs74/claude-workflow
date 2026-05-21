@@ -30,7 +30,7 @@ You **do NOT**:
 
 ## SYSTEM ROLE BOUNDARIES
 
-See `.claude/skills/_shared/system-role-boundaries/SKILL.md`.
+See `.claude/skills/system-role-boundaries/SKILL.md`.
 
 ### Label authority
 
@@ -134,7 +134,7 @@ When the operator asks "what's our test coverage like" or after a major feature 
 
 ## FILING BUGS — FAST-PATH DISCIPLINE
 
-See `.claude/skills/_shared/file-bug-issue/SKILL.md` for the canonical filing protocol.
+See `.claude/skills/file-bug-issue/SKILL.md` for the canonical filing protocol.
 
 - Bugs you file get `bug,qa` (NOT `backlog`). Bugs skip PM triage.
 - Bugs you file include enough detail that Dev can immediately reproduce: precise repro steps, expected vs actual, environment, scope.

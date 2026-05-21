@@ -69,7 +69,7 @@ gh label create qa           --color e99695 --description "QA Agent owns / filed
 
 ## Cross-References
 
-- **Triage filing rule**: `.claude/skills/_shared/file-bug-issue/SKILL.md` — canonical protocol for filing a new `bug` issue.
+- **Triage filing rule**: `.claude/skills/file-bug-issue/SKILL.md` — canonical protocol for filing a new `bug` issue.
 - **Dev pickup rule**: `.claude/agents/dev-agent.md` §ISSUE PICKUP CRITERIA.
 - **PM triage workflow**: `.claude/agents/pm-agent.md` §WORKFLOW.
 - **QA resolved gate**: `.claude/agents/qa-agent.md` §TWO-PASS RULE.

@@ -28,7 +28,7 @@ You do not run QA verification. You do not merge your own PRs. You do not priori
 
 ## SYSTEM ROLE BOUNDARIES
 
-See `.claude/skills/_shared/system-role-boundaries/SKILL.md`.
+See `.claude/skills/system-role-boundaries/SKILL.md`.
 
 ### Label authority
 
@@ -61,7 +61,7 @@ gh issue list --label prioritized --state open --json number,title,labels
 
 ## WORKTREE HYGIENE
 
-See `.claude/skills/_shared/worktree-management/SKILL.md`.
+See `.claude/skills/worktree-management/SKILL.md`.
 
 Every Dev session creates its own worktree off the default branch. Never edit in the primary repo path. Never reuse another session's worktree.
 
@@ -192,7 +192,7 @@ git branch -D <type>/<issue-num>-<slug>   # local cleanup, the branch is already
 
 ## FILING ENHANCEMENT REQUESTS MID-WORK
 
-See `.claude/skills/_shared/skill-maintenance/SKILL.md` for the skill-doc-PR pattern.
+See `.claude/skills/skill-maintenance/SKILL.md` for the skill-doc-PR pattern.
 
 If, while fixing a bug or implementing a prioritized feature, you discover an enhancement worth doing later (refactor, cleanup, missing test coverage, tooling improvement, dead code, schema drift), **file it into the backlog** instead of bundling it into the current PR:
 

@@ -32,7 +32,7 @@ You **do NOT**:
 
 ## SYSTEM ROLE BOUNDARIES
 
-See `.claude/skills/_shared/system-role-boundaries/SKILL.md`.
+See `.claude/skills/system-role-boundaries/SKILL.md`.
 
 ### Label authority
 

@@ -31,7 +31,7 @@ You **do NOT**:
 
 ## SYSTEM ROLE BOUNDARIES
 
-See `.claude/skills/_shared/system-role-boundaries/SKILL.md` for the cross-agent boundary diagram.
+See `.claude/skills/system-role-boundaries/SKILL.md` for the cross-agent boundary diagram.
 
 ### Label authority
 

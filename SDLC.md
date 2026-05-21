@@ -159,7 +159,7 @@ QA:
 
 ## GitHub Label Scheme
 
-Canonical reference: `.claude/skills/_shared/label-discipline/SKILL.md`.
+Canonical reference: `.claude/skills/label-discipline/SKILL.md`.
 
 | Label | Owner | Meaning |
 |---|---|---|
