@@ -18,6 +18,10 @@
           {
             "type": "command",
             "command": ".claude/hooks/no-direct-push-main.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/pr-merge-requires-in-review.sh"
           }
         ]
       }

@@ -12,7 +12,7 @@ See the [Claude Code hooks reference](https://docs.anthropic.com/en/docs/claude-
 |---|------|------|---------|--------|
 | 1 | `no-direct-push-main.sh` | `PreToolUse/Bash` | `git commit` or `git push origin main` while on `main` | **Done — #9** |
 | 2 | `restricted-label-ownership.sh` | `PreToolUse/Bash` | `gh issue edit --add-label` / `--remove-label` for protected labels | Coming soon — #10 |
-| 3 | `pr-merge-requires-in-review.sh` | `PreToolUse/Bash` | `gh pr merge` without `in-review` label | Coming soon — #11 |
+| 3 | `pr-merge-requires-in-review.sh` | `PreToolUse/Bash` | `gh pr merge` without `in-review` label | **Done — #11** |
 | 4 | `session-start-doc-check.sh` | `SessionStart` | Session begin | **Done — #12** |
 | 5 | `pr-body-closes-ref.sh` | `PreToolUse/Bash` | `gh pr create` with missing `Closes #N` | Coming soon — #13 |
 
@@ -123,9 +123,73 @@ Blocks `gh issue edit --add-label` / `--remove-label` on protected labels (`prio
 
 ---
 
-## Hook 3: `pr-merge-requires-in-review.sh` (coming — #11)
+## Hook 3: `pr-merge-requires-in-review.sh`
 
-Blocks `gh pr merge` if the PR does not carry the `in-review` label. Prevents self-merges and premature merges before Code Reviewer has signed off.
+**Purpose:** Block `gh pr merge` if the PR does not carry the `in-review` label. Prevents Dev agents from self-merging and premature merges before the Code Reviewer has signed off.
+
+**Trigger:** `PreToolUse` on tool `Bash`
+
+**What it blocks — all forms including flags and compound commands:**
+- `gh pr merge 5` (simple)
+- `gh pr merge --squash 5` (flag before number)
+- `gh pr merge 5 --squash` (flag after number)
+- `gh pr merge 5 --squash --delete-branch` (multiple flags)
+- `gh pr merge '5'` / `gh pr merge "5"` (quoted number — both forms)
+- `gh pr merge https://github.com/owner/repo/pull/5` (URL form)
+- `cd /tmp && gh pr merge 5` (compound command)
+
+**What it allows:**
+- `gh pr merge <N>` when PR `<N>` carries the `in-review` label — passes through silently
+- `gh pr view`, `gh pr create`, `gh issue close`, and all other non-merge `gh` subcommands
+- Any non-`gh` command (`git`, `ls`, etc.)
+
+**Exit codes:**
+- `0` — allow (silent)
+- `2` — block (Claude Code surfaces the stderr message to the user)
+
+**Rule this enforces:** SDLC.md Step 5 — "Code Reviewer merges. Always."
+
+---
+
+### Running the self-test
+
+The hook ships with a `--self-test` flag that exercises 18 cases across all documented forms:
+
+```bash
+bash .claude/hooks/pr-merge-requires-in-review.sh --self-test
+```
+
+The self-test is fully hermetic — it uses `CLAUDE_HOOK_GH_LABELS_CMD` to stub the `gh pr view` call and never makes real GitHub API requests. PR #42 and #7 are the "has in-review" mocks; all other numbers return labels without `in-review`.
+
+Expected output (all 18 cases green):
+
+```
+=== pr-merge-requires-in-review.sh --self-test ===
+
+--- SHOULD BLOCK (exit 2) ---
+  PASS  gh pr merge 5  (no in-review)                                 (block)
+  PASS  gh pr merge --squash 5  (flag before num)                     (block)
+  PASS  gh pr merge 5 --squash  (flag after num)                      (block)
+  PASS  gh pr merge 5 --squash --delete-branch                        (block)
+  PASS  gh pr merge '5'  (single-quoted number)                       (block)
+  PASS  gh pr merge "5"  (double-quoted number)                       (block)
+  PASS  compound: cd /tmp && gh pr merge 5                            (block)
+  PASS  URL form: gh pr merge .../pull/5                              (block)
+
+--- SHOULD ALLOW (exit 0) ---
+  PASS  gh pr merge 42  (has in-review)                               (allow)
+  PASS  gh pr merge --squash 42  (in-review, flag)                    (allow)
+  PASS  gh pr merge 7 --squash  (in-review, flag)                     (allow)
+  PASS  gh pr view 5  (not a merge command)                           (allow)
+  PASS  gh pr create  (not a merge command)                           (allow)
+  PASS  gh issue close 5  (non-pr command)                            (allow)
+  PASS  gh issue edit 5 --add-label in-review                         (allow)
+  PASS  ls -la  (non-gh command)                                      (allow)
+  PASS  git push origin feat/11-branch                                (allow)
+  PASS  CLAUDE_HOOK_BYPASS=1 with blocked PR                          (allow)
+
+=== Results: 18 passed, 0 failed ===
+```
 
 ---
 
