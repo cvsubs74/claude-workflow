@@ -24,7 +24,7 @@
 # Restricted-label ownership table (per label-discipline SKILL.md):
 #   prioritized, priority:high, priority:medium, priority:low  → pm-agent
 #   resolved                                                   → qa-agent
-#   in-review                                                  → dev-agent, code-reviewer-agent
+#   in-review                                                  → dev-agent only
 #   pm                                                         → pm-agent
 #   qa                                                         → qa-agent
 #
@@ -78,7 +78,7 @@ get_label_owners() {
     pm)               printf '%s' "pm-agent" ;;
     resolved)         printf '%s' "qa-agent" ;;
     qa)               printf '%s' "qa-agent" ;;
-    in-review)        printf '%s' "dev-agent code-reviewer-agent" ;;
+    in-review)        printf '%s' "dev-agent" ;;
     *)                printf '%s' "" ;;
   esac
 }
@@ -143,10 +143,12 @@ if [[ "${1:-}" == "--self-test" ]]; then
   run_case "dev adds qa label"                            "gh issue edit 5 --add-label qa"                   "dev-agent"              "block"
   run_case "pm adds qa label"                             "gh pr edit 5 --add-label qa"                      "pm-agent"               "block"
 
-  # in-review — only dev-agent and code-reviewer-agent
+  # in-review — dev-agent only (CR does NOT have apply/remove authority)
   run_case "pm adds in-review"                            "gh issue edit 5 --add-label in-review"            "pm-agent"               "block"
   run_case "qa adds in-review"                            "gh pr edit 5 --add-label in-review"               "qa-agent"               "block"
   run_case "triage removes in-review"                     "gh pr edit 5 --remove-label in-review"            "triage-agent"           "block"
+  run_case "code-reviewer adds in-review (blocked)"       "gh pr edit 5 --add-label in-review"               "code-reviewer-agent"    "block"
+  run_case "code-reviewer removes in-review (blocked)"    "gh pr edit 5 --remove-label in-review"            "code-reviewer-agent"    "block"
 
   echo ""
   echo "--- SHOULD ALLOW (exit 0) ---"
@@ -162,10 +164,8 @@ if [[ "${1:-}" == "--self-test" ]]; then
   run_case "qa adds resolved (owner)"                     "gh issue edit 5 --add-label resolved"             "qa-agent"               "allow"
   run_case "qa adds qa label (owner)"                     "gh issue edit 5 --add-label qa"                   "qa-agent"               "allow"
 
-  # Dev and CR adding in-review
+  # Dev adding in-review (only dev-agent is authorised)
   run_case "dev adds in-review (owner)"                   "gh pr edit 5 --add-label in-review"               "dev-agent"              "allow"
-  run_case "code-reviewer adds in-review (owner)"         "gh pr edit 5 --add-label in-review"               "code-reviewer-agent"    "allow"
-  run_case "code-reviewer removes in-review (owner)"      "gh pr edit 5 --remove-label in-review"            "code-reviewer-agent"    "allow"
 
   # Unrestricted labels — anyone may apply
   run_case "dev adds plain enhancement label"             "gh issue edit 5 --add-label enhancement"          "dev-agent"              "allow"
