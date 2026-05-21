@@ -148,10 +148,10 @@ c. Document the result on the issue:
      - Result: <observed behavior>
    ```
 
-d. If pass: apply `resolved`. (No second run required — see §TWO-PASS rule for why.)
+d. If pass: apply `resolved`. (No second run required — see §TWO-PASS rule for why.) Do NOT remove `in-review` — that label is owned by Dev/Code Reviewer per `label-discipline`; if it's still on the issue post-merge, that's a separate workflow gap, not yours to fix here.
 
    ```bash
-   gh issue edit <N> --add-label resolved --remove-label in-review
+   gh issue edit <N> --add-label resolved
    ```
 
 e. If fail: comment with details, ping Dev, do NOT apply `resolved`.
