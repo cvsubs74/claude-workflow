@@ -161,6 +161,8 @@ QA:
 
 Canonical reference: `.claude/skills/label-discipline/SKILL.md`.
 
+**Recovery:** if an agent reports a missing label (e.g. `label "prioritized" not found`), run `bin/bootstrap-labels.sh [OWNER/REPO]` to (re-)create the canonical set. The script is idempotent — safe to re-run any time.
+
 | Label | Owner | Meaning |
 |---|---|---|
 | `bug` | QA / Triage / Dev / Operator | Regression. Skips backlog. |

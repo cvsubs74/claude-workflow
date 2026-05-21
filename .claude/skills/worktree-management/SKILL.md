@@ -85,6 +85,37 @@ When multiple specialist sessions are active:
 
 ---
 
+## Hand-off pattern: shared branches across agents
+
+Sometimes two agents need to work the same branch sequentially — e.g. PM writes the PRD on `feat/123-foo`, then Dev extends the same branch with the implementation. Git only allows one worktree to have a given branch checked out at a time, so the second agent will hit:
+
+```
+fatal: 'feat/123-foo' is already checked out at '.worktrees/pm-123'
+```
+
+**Canonical fix — releasing agent prunes its worktree on hand-off.** When you finish your part of the work on a shared branch, push your commits and then:
+
+```bash
+# from the primary repo path
+git worktree remove .worktrees/<your-task-id>
+```
+
+The next agent can then `git worktree add .worktrees/<their-task-id> -b <branch> origin/<branch>` cleanly.
+
+**Fallback when the previous worktree is still open** (e.g. you can't reach the previous session to release it): create a worktree in **detached HEAD** mode and push back to the shared branch by ref:
+
+```bash
+git fetch origin
+git worktree add --detach .worktrees/<your-task-id> origin/<branch>
+cd .worktrees/<your-task-id>
+# ... edit, commit ...
+git push origin HEAD:<branch>
+```
+
+This avoids the branch-checkout conflict (the worktree never claims the branch) while still landing your commits on it. Document in your PR comment that you used the detached-HEAD fallback so the operator knows the previous worktree still needs cleanup.
+
+---
+
 ## Auditing what's open
 
 ```bash

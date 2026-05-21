@@ -113,30 +113,13 @@ if [[ -f ".claude/settings.local.json.template" && ! -f ".claude/settings.local.
   fi
 fi
 
-# Offer to bootstrap labels via gh CLI
+# Offer to bootstrap labels via gh CLI (delegates to bin/bootstrap-labels.sh,
+# which is also runnable standalone for recovery).
 if command -v gh >/dev/null 2>&1 && [[ -n "$GITHUB_REPO" ]]; then
   echo
   read -rp "Bootstrap GitHub labels (bug, enhancement, backlog, prioritized, ...) on $GITHUB_REPO? [Y/n]: " BOOTSTRAP_LABELS
   if [[ "$BOOTSTRAP_LABELS" != "n" && "$BOOTSTRAP_LABELS" != "N" ]]; then
-    bootstrap_label() {
-      local name="$1" color="$2" desc="$3"
-      gh label create "$name" --color "$color" --description "$desc" --repo "$GITHUB_REPO" 2>/dev/null \
-        || gh label edit "$name" --color "$color" --description "$desc" --repo "$GITHUB_REPO" 2>/dev/null \
-        || true
-    }
-    bootstrap_label bug             d73a4a "Regression or breakage — fast-path, skips backlog"
-    bootstrap_label enhancement     a2eeef "New feature, refactor, cleanup, tooling"
-    bootstrap_label backlog         cccccc "Awaiting PM triage"
-    bootstrap_label prioritized     0e8a16 "PM has triaged and approved for Dev pickup"
-    bootstrap_label "priority:high"   b60205 "Blocks workflow or required precondition"
-    bootstrap_label "priority:medium" fbca04 "Clear value, no active blocker (safe default)"
-    bootstrap_label "priority:low"    c2e0c6 "Cleanup, polish, nice-to-have"
-    bootstrap_label "in-progress"   1d76db "Dev has started"
-    bootstrap_label "in-review"     5319e7 "PR open, awaiting Code Reviewer"
-    bootstrap_label resolved        0e8a16 "QA verified post-merge (two-pass)"
-    bootstrap_label pm              6f42c1 "PM Agent owns / filed"
-    bootstrap_label qa              e99695 "QA Agent owns / filed"
-    echo "    Labels bootstrapped on $GITHUB_REPO"
+    "$SCRIPT_DIR/bootstrap-labels.sh" "$GITHUB_REPO"
   fi
 fi
 
