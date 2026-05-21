@@ -35,6 +35,8 @@ See the [Claude Code hooks reference](https://docs.anthropic.com/en/docs/claude-
 - `git push origin +main` (force-push shorthand via leading `+`)
 - `git push origin :main` (delete remote branch)
 - `git push origin +main:main` / `git push origin +refs/heads/main` (combined force + refspec)
+- `git push 'origin' 'main'` / `git push "origin" "main"` (shell-quoted args — both forms)
+- `git push 'origin' 'HEAD:main'` / `git push "origin" "HEAD:refs/heads/main"` (quoted + refspec combined)
 - `git commit` when the current branch is `main` or `master`
 
 **What it allows:**
@@ -74,7 +76,7 @@ The hook ships with a `--self-test` flag that exercises all known block and allo
 bash .claude/hooks/no-direct-push-main.sh --self-test
 ```
 
-Expected output (all 20 cases green):
+Expected output (all 25 cases green):
 
 ```
 === no-direct-push-main.sh --self-test ===
@@ -93,17 +95,22 @@ Expected output (all 20 cases green):
   PASS  git push origin +main:main                               (block)
   PASS  git push origin +refs/heads/main                         (block)
   PASS  git push origin HEAD:refs/heads/main                     (block)
+  PASS  git push 'origin' 'main'  (single-quoted args)           (block)
+  PASS  git push "origin" "main"  (double-quoted args)           (block)
+  PASS  git push 'origin' 'HEAD:main'  (quoted + refspec)        (block)
+  PASS  git push "origin" "HEAD:refs/heads/main"  (quoted)       (block)
 
 --- SHOULD ALLOW (exit 0) ---
   PASS  git push origin feat/9-branch                            (allow)
   PASS  git push origin mainline  (no false positive)            (allow)
   PASS  git push origin feat/main-fix  (contains main)           (allow)
   PASS  git push upstream main  (different remote)               (allow)
+  PASS  git push 'origin' 'feat/x'  (quoted, allowed branch)     (allow)
   PASS  git commit -m fix  (on feature branch)                   (allow)
   PASS  ls -la  (non-git command)                                (allow)
   PASS  bypass via CLAUDE_HOOK_BYPASS=1                          (allow)
 
-=== Results: 20 passed, 0 failed ===
+=== Results: 25 passed, 0 failed ===
 ```
 
 Run the self-test whenever you modify the hook script to catch regressions before pushing.

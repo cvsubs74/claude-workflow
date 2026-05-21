@@ -47,7 +47,10 @@ if [[ "${1:-}" == "--self-test" ]]; then
     local expect="$3"   # "block" or "allow"
 
     local payload
-    payload="$(printf '{"tool_name":"Bash","tool_input":{"command":"%s"}}' "$cmd")"
+    # Use jq to build the JSON so that special characters (double quotes, etc.)
+    # in $cmd are properly escaped — printf %s would produce invalid JSON for
+    # commands that contain literal double-quote characters.
+    payload="$(jq -cn --arg cmd "$cmd" '{"tool_name":"Bash","tool_input":{"command":$cmd}}')"
 
     local exit_code=0
     printf '%s' "$payload" | bash "$SCRIPT" >/dev/null 2>&1 || exit_code=$?
@@ -89,6 +92,13 @@ if [[ "${1:-}" == "--self-test" ]]; then
   run_case "git push origin +refs/heads/main"      "git push origin +refs/heads/main"       "block"
   run_case "git push origin HEAD:refs/heads/main"  "git push origin HEAD:refs/heads/main"   "block"
 
+  # Quoted-arg bypass forms (CR finding — previously allowed because tokenizer
+  # kept literal quote chars, so "'origin'" != "origin")
+  run_case "git push 'origin' 'main'  (single-quoted args)"        "git push 'origin' 'main'"              "block"
+  run_case "git push \"origin\" \"main\"  (double-quoted args)"     'git push "origin" "main"'              "block"
+  run_case "git push 'origin' 'HEAD:main'  (quoted + refspec)"     "git push 'origin' 'HEAD:main'"         "block"
+  run_case "git push \"origin\" \"HEAD:refs/heads/main\"  (quoted)" 'git push "origin" "HEAD:refs/heads/main"' "block"
+
   echo ""
   echo "--- SHOULD ALLOW (exit 0) ---"
 
@@ -96,6 +106,7 @@ if [[ "${1:-}" == "--self-test" ]]; then
   run_case "git push origin mainline  (no false positive)" "git push origin mainline"        "allow"
   run_case "git push origin feat/main-fix  (contains main)" "git push origin feat/main-fix" "allow"
   run_case "git push upstream main  (different remote)" "git push upstream main"             "allow"
+  run_case "git push 'origin' 'feat/x'  (quoted, allowed branch)" "git push 'origin' 'feat/x'"  "allow"
   run_case "git commit -m fix  (on feature branch)" "git commit -m fix"                     "allow"
   run_case "ls -la  (non-git command)"             "ls -la"                                 "allow"
   CLAUDE_HOOK_BYPASS=1 run_case "bypass via CLAUDE_HOOK_BYPASS=1" "git push origin main"    "allow"
@@ -216,6 +227,17 @@ if printf '%s' "$COMMAND" | command grep -qE '\bgit\b.*\bpush\b'; then
     if [[ "$token" == -* ]]; then
       continue
     fi
+
+    # Option A: strip surrounding shell quotes (' or ") from the token before
+    # any comparison. The tokenizer (for token in $PUSH_ARGS) splits on
+    # whitespace but does NOT strip shell quoting characters, so the five-char
+    # string "'origin'" would not match the four-char string "origin". We strip
+    # matching pairs of leading/trailing single or double quotes here.
+    # Example: "'origin'" → "origin";  '"main"' → "main"
+    if [[ ( "$token" == \'*\' ) || ( "$token" == \"*\" ) ]]; then
+      token="${token:1:${#token}-2}"
+    fi
+
     # First non-flag word is the remote (e.g. "origin", "upstream")
     if [[ "$FOUND_REMOTE" -eq 0 ]]; then
       FOUND_REMOTE=1
