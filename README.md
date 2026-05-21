@@ -73,6 +73,14 @@ That's it. The Team Lead will read `CLAUDE.md`, anchor on recent state, and acce
 ├── docs/
 │   ├── prd/README.md             # Where PRDs live (PRD-<topic>.md)
 │   ├── design/README.md          # Where design docs live (DESIGN-<topic>.md)
+│   ├── playbooks/                # One per agent — running notebook for project-specific knowledge
+│   │   ├── pm.md
+│   │   ├── triage.md
+│   │   ├── dev.md
+│   │   ├── qa.md
+│   │   ├── code-reviewer.md
+│   │   ├── devops.md
+│   │   └── designer.md
 │   └── ARCHITECTURE.md.template  # Rename + fill in for your project
 └── bin/
     └── init-project.sh           # One-shot interactive setup script
@@ -134,6 +142,7 @@ Inspired by gstack's sprint methodology — every change flows through these sta
 3. **Edit SDLC.md.** Adjust label scheme if your team uses different labels. Pin your branch naming convention.
 4. **Trim agents you don't need.** A solo project might not need a separate Designer or DevOps agent — delete those files.
 5. **Add project-specific shared skills.** As patterns emerge (deploy chain, tenant routing, etc.), add them under `.claude/skills/<name>/SKILL.md` and reference from agent files.
+6. **Let agents fill their playbooks.** `docs/playbooks/<role>.md` is each agent's running notebook for project-specific knowledge — test surfaces for QA, deploy quirks for DevOps, code conventions for Dev. Agents read their own playbook on cold-start and append when they learn something worth keeping.
 
 ---
 

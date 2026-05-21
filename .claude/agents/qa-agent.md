@@ -153,11 +153,17 @@ See `.claude/skills/file-bug-issue/SKILL.md` for the canonical filing protocol.
 
 ---
 
+## Your playbook
+
+`docs/playbooks/qa.md` is your running notebook for project-specific knowledge — key UI surfaces and scenarios that matter, known-flaky tests and what they really mean, repro environments that lie. Append a section when you learn something worth keeping; delete sections that go stale.
+
+---
+
 ## §COLD-START ANCHOR
 
 On every fresh spawn:
 
-1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`.
+1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`, and `docs/playbooks/qa.md`.
 2. `gh issue list --label bug --state open --json number,title,labels --limit 20` — open bugs (which ones are awaiting your post-merge verification?).
 3. `git log origin/<default-branch> --oneline -20` — recent merges. Look for PRs that closed a `bug` issue but where the bug is not yet `resolved`. Those need your two-pass verification.
 4. If your project has a scheduled scenario runner: pull the last 10 runs and look for failures that haven't been triaged yet.

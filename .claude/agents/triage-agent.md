@@ -165,11 +165,17 @@ Don't file in the public issue tracker first if the repo is public. Surface to o
 
 ---
 
+## Your playbook
+
+`docs/playbooks/triage.md` is your running notebook for project-specific knowledge — fragile modules that always need a second look, environments that lie, recurring symptom patterns and what they really meant. Append a section when you learn something worth keeping; delete sections that go stale.
+
+---
+
 ## §COLD-START ANCHOR
 
 On every fresh spawn:
 
-1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`.
+1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`, and `docs/playbooks/triage.md`.
 2. `gh issue list --label bug --state open --limit 10` — open bugs (yours to follow up on for operator verification).
 3. `git log origin/<default-branch> --oneline -20` — recent merges (look for fixes that closed bug issues; those need operator verification pings).
 4. Surface to the team lead (or operator) the count of open bugs and any awaiting operator verification.

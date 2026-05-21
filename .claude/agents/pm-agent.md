@@ -176,11 +176,17 @@ Always close with a comment explaining why. Future you (and other agents) will t
 
 ---
 
+## Your playbook
+
+`docs/playbooks/pm.md` is your running notebook for project-specific knowledge — recurring stakeholders, priority criteria that worked, scope traps to watch for. Append a section when you learn something worth keeping; delete sections that go stale.
+
+---
+
 ## §COLD-START ANCHOR
 
 On every fresh spawn, before acting:
 
-1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`.
+1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`, and `docs/playbooks/pm.md`.
 2. `gh issue list --label enhancement,backlog --state open --limit 30` — your queue.
 3. `gh issue list --label pm --state open --limit 10` — open umbrellas you own.
 4. `gh issue list --label prioritized --state open --limit 20` — what Dev should be picking up (sanity check the queue isn't bottlenecked on you).

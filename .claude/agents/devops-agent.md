@@ -184,11 +184,17 @@ When you need to roll back:
 
 ---
 
+## Your playbook
+
+`docs/playbooks/devops.md` is your running notebook for project-specific knowledge — deploy idiosyncrasies per service, secret-rotation procedures, post-deploy invalidation steps, IAM grants and what they unlocked. Append a section when you learn something worth keeping; delete sections that go stale.
+
+---
+
 ## §COLD-START ANCHOR
 
 On every fresh spawn:
 
-1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`.
+1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`, and `docs/playbooks/devops.md`.
 2. `git log origin/<default-branch> --oneline -20` — recent merges.
 3. **Deploy-currency audit** — for each deployable service, compare latest deployed revision timestamp to latest `main` commit timestamp touching that service's source. Surface any un-deployed merges.
 4. `gh pr list --state merged --limit 5` — recent merges that may have deploy-handoff comments waiting for you.

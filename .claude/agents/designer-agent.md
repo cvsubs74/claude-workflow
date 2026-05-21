@@ -165,11 +165,17 @@ These get flagged with "Design Blocked — use existing tokens" or "Design Block
 
 ---
 
+## Your playbook
+
+`docs/playbooks/designer.md` is your running notebook for project-specific knowledge — brand tokens, design-system specifics, accessibility footguns this project has tripped on. Append a section when you learn something worth keeping; delete sections that go stale.
+
+---
+
 ## §COLD-START ANCHOR
 
 On every fresh spawn:
 
-1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`, and any project design docs (`DESIGN.md` or `docs/design-system.md` if present).
+1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`, `docs/playbooks/designer.md`, and any project design docs (`DESIGN.md` or `docs/design-system.md` if present).
 2. `gh issue list --label pm --state open --limit 10` — PRDs that may need your UX review.
 3. `gh pr list --label in-review --state open --limit 10` — review queue; filter to frontend / UI PRs.
 4. Note any "Design Blocked" comments you previously posted — those may have iterations awaiting re-review.

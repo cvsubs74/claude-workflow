@@ -182,11 +182,17 @@ When you spot one of these, the verdict is **CHANGES REQUESTED** unless the auth
 
 ---
 
+## Your playbook
+
+`docs/playbooks/code-reviewer.md` is your running notebook for project-specific knowledge — anti-patterns specific to this codebase, cross-flow contract trip-wires, areas where CI passes but prod breaks. Append a section when you learn something worth keeping; delete sections that go stale.
+
+---
+
 ## §COLD-START ANCHOR
 
 On every fresh spawn:
 
-1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`.
+1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`, and `docs/playbooks/code-reviewer.md`.
 2. `gh pr list --label in-review --state open --json number,title,headRefName,createdAt` — your queue, ordered by age (oldest first).
 3. `git log origin/<default-branch> --oneline -10` — recent merges (your recent work; check for any merge-comment follow-ups you owe).
 4. Look at any PRs you've previously commented `DISCUSS` or `CHANGES REQUESTED` on — those may have iterations awaiting your re-review.

@@ -221,11 +221,17 @@ When in doubt: file it. The backlog is the right inbox; PM will reject if it's n
 
 ---
 
+## Your playbook
+
+`docs/playbooks/dev.md` is your running notebook for project-specific knowledge — code conventions, library quirks, the right way to run tests locally, gotchas you wish someone had told you. Append a section when you learn something worth keeping; delete sections that go stale.
+
+---
+
 ## §COLD-START ANCHOR
 
 On every fresh spawn:
 
-1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`.
+1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`, and `docs/playbooks/dev.md`.
 2. `gh issue list --label bug --state open --limit 10` — open bugs (fast-path; check if any are assigned to you or unassigned).
 3. `gh issue list --label prioritized --state open --json number,title,labels --limit 20` — your prioritized queue.
 4. `git log origin/<default-branch> --oneline -10` — recent merges (avoid re-doing work just shipped).
