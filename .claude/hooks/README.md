@@ -14,7 +14,7 @@ See the [Claude Code hooks reference](https://docs.anthropic.com/en/docs/claude-
 | 2 | `restricted-label-ownership.sh` | `PreToolUse/Bash` | `gh issue edit --add-label` / `--remove-label` for protected labels | Coming soon — #10 |
 | 3 | `pr-merge-requires-in-review.sh` | `PreToolUse/Bash` | `gh pr merge` without `in-review` label | **Done — #11** |
 | 4 | `session-start-doc-check.sh` | `SessionStart` | Session begin | **Done — #12** |
-| 5 | `pr-body-closes-ref.sh` | `PreToolUse/Bash` | `gh pr create` with missing `Closes #N` | Coming soon — #13 |
+| 5 | `pr-body-closes-check.sh` | `PreToolUse/Bash` | `gh pr create` with missing `Closes #N` | **Done — #13** |
 
 ---
 
@@ -256,9 +256,70 @@ Expected output (all 7 cases green):
 
 ---
 
-## Hook 5: `pr-body-closes-ref.sh` (coming — #13)
+## Hook 5: `pr-body-closes-check.sh` — Done (#13)
 
-Warns when `gh pr create` is called without a `Closes #N` or `Refs #N` in the PR body, reducing orphaned PRs that don't link back to their driving issue.
+**Purpose:** Warn (never block) when `gh pr create` is called without a GitHub auto-close keyword in the PR body. Reduces orphaned PRs that silently fail to close their tracking issues on merge.
+
+**Rationale:** dev-agent.md §5 establishes that `Closes #N` is mandatory for any PR that fully resolves a tracking issue. This hook makes accidental omission visible rather than silent.
+
+**Trigger:** `PreToolUse` on tool `Bash`
+
+**What it warns on:**
+- `gh pr create --body "some text"` where the body lacks any auto-close keyword
+- `gh pr create --body-file path/to/file` where the file content lacks any auto-close keyword
+
+**What it allows silently:**
+- `gh pr create --body "Closes #5"` (or any GitHub auto-close keyword — see below)
+- `gh pr create` (no `--body` or `--body-file` — interactive edit, can't check)
+- `gh pr create --body-file <path>` where the file does not exist or is not readable
+- Any non-`gh pr create` command
+
+**Accepted auto-close keywords (case-insensitive):**
+- `Closes #N` / `Close #N`
+- `Fixes #N` / `Fix #N`
+- `Resolves #N` / `Resolve #N`
+
+`Refs #N` is intentionally NOT in the accepted list — it does not auto-close the issue, so the warning is appropriate.
+
+**Exit codes:**
+- `0` — always (warn-only hook; never blocks)
+
+**Running the self-test:**
+
+```bash
+bash .claude/hooks/pr-body-closes-check.sh --self-test
+```
+
+Expected output (all 19 cases green):
+
+```
+=== pr-body-closes-check.sh --self-test ===
+
+--- SHOULD ALLOW (no warning, exit 0) ---
+  PASS  gh pr create --body "Closes #5"                                 (allow)
+  PASS  gh pr create --body "Fixes #5"                                  (allow)
+  PASS  gh pr create --body "Resolves #5"                               (allow)
+  PASS  gh pr create --body "Close #5"                                  (allow)
+  PASS  gh pr create --body "Fix #5"                                    (allow)
+  PASS  gh pr create --body "Resolve #5"                                (allow)
+  PASS  gh pr create --body "closes #5" (lowercase)                     (allow)
+  PASS  gh pr create --body "CLOSES #5" (uppercase)                     (allow)
+  PASS  gh pr create --body multiline (literal \n) with Closes #5       (allow)
+  PASS  gh pr create (interactive, no body flag)                        (allow)
+  PASS  gh pr create --draft (no body flag)                             (allow)
+  PASS  gh pr create --body-file with Closes #N                         (allow)
+  PASS  gh pr create --body-file nonexistent (allow through)            (allow)
+  PASS  cd /tmp && gh pr create --body "Closes #5" (compound cmd)       (allow)
+  PASS  bypass via CLAUDE_HOOK_BYPASS=1                                 (allow)
+  PASS  git status (non-gh command)                                     (allow)
+
+--- SHOULD WARN (missing auto-close keyword, exit 0) ---
+  PASS  gh pr create --body "lorem ipsum"                               (warn)
+  PASS  gh pr create --body "refs #5" (refs is not auto-close)          (warn)
+  PASS  gh pr create --body-file without Closes #N                      (warn)
+
+=== Results: 19 passed, 0 failed ===
+```
 
 ---
 
