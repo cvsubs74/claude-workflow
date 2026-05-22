@@ -162,6 +162,11 @@ _check_no_noise "gh pr create --title 'merge xyz' silent (no spurious warning)" 
 _check_no_noise "grep 'gh pr merge' (non-gh, silent)"                            'grep "gh pr merge" SDLC.md'
 unset -f _check_no_noise
 
+# Bare merge at end-of-string (no trailing space or args) — detection regex
+# must trigger ($ anchor in ([[:space:]]|$) matches end-of-line); the hook
+# then fails open because no PR number can be extracted.
+run_case "$HOOK" "bare merge at end-of-string (fail-open, allow)"  "gh pr merge"                                      "allow"
+
 CLAUDE_HOOK_BYPASS=1 run_case "$HOOK" "bypass with blocked PR"  "gh pr merge 5"                                       "allow"
 
 unset CLAUDE_HOOK_GH_LABELS_CMD
@@ -326,6 +331,11 @@ run_case "$HOOK" "ls -la (non-gh)"                         "ls -la"             
 run_case "$HOOK" "grep 'gh pr merge' in quoted arg"        'grep "gh pr merge" SDLC.md'                               "allow"
 run_case "$HOOK" "echo 'gh pr merge' in quoted arg"        'echo "use gh pr merge --delete-branch"'                   "allow"
 run_case "$HOOK" "--body-file workaround with merge phrase" 'gh pr create --body-file /tmp/f.txt'                     "allow"
+
+# Bare merge at end-of-string (no trailing space or args) — detection regex
+# must still fire via the $ anchor in ([[:space:]]|$); the hook then blocks
+# because --delete-branch is absent (same as any other merge without the flag).
+run_case "$HOOK" "bare merge at end-of-string (no flags -> block)"  "gh pr merge"                                     "block"
 
 CLAUDE_HOOK_BYPASS=1 run_case "$HOOK" "bypass with blocked form" "gh pr merge 5 --squash" "allow"
 

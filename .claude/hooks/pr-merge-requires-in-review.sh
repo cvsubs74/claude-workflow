@@ -77,7 +77,7 @@ fi
 #
 # We use grep -qE rather than bash regex to avoid bash ERE portability issues.
 # ---------------------------------------------------------------------------
-GH_MERGE_RE='(^|;|&&|\|\||[|])[[:space:]]*gh[[:space:]]+pr[[:space:]]+merge[[:space:]|$]'
+GH_MERGE_RE='(^|;|&&|\|\||[|])[[:space:]]*gh[[:space:]]+pr[[:space:]]+merge([[:space:]]|$)'
 if ! printf '%s' "$COMMAND" | command grep -qE "$GH_MERGE_RE"; then
   # Not a gh pr merge call — allow through
   exit 0
