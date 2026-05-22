@@ -28,3 +28,22 @@ These forms allow through and are acceptable — document rather than require fi
 - Unmatched quotes (`git push 'origin main`): malformed shell syntax; the shell rejects this at execution before the push runs. Consistent with fail-open design.
 - Nested quotes (`git push "'origin'" "'main'"`): outer pair stripped → `'origin'` != `origin`, loop breaks. Non-exploitable; git would error on remote name `'origin'`.
 - All of these require deliberate self-evasion; the escape hatch is `CLAUDE_HOOK_BYPASS=1`.
+
+## Hook false-positive — phrase-in-argument pattern (Hook 6, potentially Hook 3)
+
+Any hook that uses `grep -qE '\bgh[[:space:]]+pr[[:space:]]+merge\b'` (or similar adjacent-token regex) on the raw COMMAND string will false-positive when that phrase appears inside a quoted argument of an unrelated command. For example, a `gh pr comment` whose body contains the literal text matching the regex will be blocked.
+
+**Workaround at review time:** write the comment/body to a temp file and pass `--body-file /tmp/file.txt` to `gh pr comment` and `gh issue create`. This keeps the phrase out of the shell command string that the hook inspects.
+
+**Long-term fix pattern (from issue #28):** strip quoted strings from COMMAND before the detection grep, or check that the token sequence appears as an actual command (at position 0 or after a shell separator). See issue #27 (Hook 3) and issue #28 (Hook 6) for the exact sed-based fix.
+
+**When posting LGTM verdicts on PRs that discuss hooks:** always use `--body-file` — never inline the body as a `--body` argument if the body references hook command examples.
+
+## POSIX ERE bracket expression vs alternation — hook regex trap
+
+In POSIX ERE, `[[:space:]|$]` is a bracket expression where `|` and `$` are **literal characters**, not alternation or end-of-line anchors. The correct form to mean "whitespace OR end-of-line" is `([[:space:]]|$)`. The two look visually similar but behave differently:
+
+- `[[:space:]|$]` — matches one character that is whitespace, literal `|`, or literal `$`
+- `([[:space:]]|$)` — matches either one whitespace character, or the end of the string/line
+
+When reviewing hook regexes that include a trailing boundary after the command token (e.g., after `merge`), verify the correct alternation form is used. A bracket expression will miss the case where `merge` appears at absolute end-of-string with no trailing character — which is an edge case in practice, but the playbook example and the hook code must agree. Seen in PR #30: both hooks used `[[:space:]|$]` while the playbook documented `([[:space:]]|$)`.
