@@ -154,3 +154,36 @@ env CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$stub" bash hook.sh < /tmp/payload.json
 while `mktemp` and `realpath` may return the unresolved path (`/var/...`). Always
 canonicalize WORKTREES_DIR with `cd "$dir" && pwd -P` before comparing against
 paths returned by git commands on macOS.
+
+## PostToolUse hooks do NOT fire in agent sub-sessions
+
+`settings.json` hooks (PreToolUse / PostToolUse) only fire when the OPERATOR'S
+main session executes a tool. When any specialist agent (CR, Dev, etc.) runs
+inside an agent sub-session (spawned via the `Agent` tool), ALL hook dispatch
+is bypassed — confirmed bug: anthropics/claude-code #34692 (March 2026).
+
+**Consequence for hook design:** Don't rely on PostToolUse hooks for enforcement
+that must work in agent-driven workflows. Use an explicit wrapper script instead.
+See `bin/merge-pr.sh` as the canonical pattern (PR #84).
+
+## PostToolUse shell hook stdin fields (real runtime — corrected in PR #84)
+
+The Claude Code runtime sends these fields for Bash `PostToolUse`:
+- `tool_response.stdout` — the command's stdout
+- `tool_response.stderr` — the command's stderr
+- `tool_response.exit_code` — the command's exit code (int)
+
+NOT `tool_response.output` / `tool_response.error` as originally documented.
+When writing hooks that read tool_response, use the correct field names. For
+backward compat with old test payloads, use `// .tool_response.error` fallback.
+
+## gh pr merge exits 1 for local branch checkout conflicts
+
+`gh pr merge <N> --squash --delete-branch` returns exit code 1 when the
+GitHub merge succeeded but the local branch cannot be deleted because a
+worktree still has it checked out:
+  "error: Cannot delete branch '<branch>' checked out at '<path>'"
+
+In this case the merge on GitHub was real. Any hook or script that bails on
+non-zero exit alone will miss the cleanup. Only skip cleanup when a known
+merge-failure phrase is in stderr AND exit code is non-zero.
