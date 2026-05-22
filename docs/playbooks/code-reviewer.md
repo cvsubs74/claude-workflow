@@ -67,3 +67,9 @@ In POSIX ERE, `[[:space:]|$]` is a bracket expression where `|` and `$` are **li
 - `([[:space:]]|$)` — matches either one whitespace character, or the end of the string/line
 
 When reviewing hook regexes that include a trailing boundary after the command token (e.g., after `merge`), verify the correct alternation form is used. A bracket expression will miss the case where `merge` appears at absolute end-of-string with no trailing character — which is an edge case in practice, but the playbook example and the hook code must agree. Seen in PR #30: both hooks used `[[:space:]|$]` while the playbook documented `([[:space:]]|$)`.
+
+## Hook 6 — `--delete-branch` missed when flag is semicolon-adjacent
+
+Hook 6's token walk (`for token in $MERGE_SEGMENT`) splits on IFS whitespace. When the merge command is part of a compound command with no space before the semicolon — `gh pr merge N --squash --delete-branch; CMD2` — the token is `--delete-branch;` (with trailing semicolon), which does not equal `--delete-branch`. Hook 6 then (incorrectly) blocks the merge.
+
+**Workaround:** always issue `gh pr merge` as a standalone command, not chained in a compound statement. Seen during PR #53 merge (May 2026). A hook fix (strip trailing semicolons from each token before comparison) is the long-term solution — file a follow-up issue if this recurs.
