@@ -33,3 +33,13 @@ Project-specific notes that future-you (the PM agent on this project) needs. App
 **Out-of-scope findings still get a triage row.** Even when a finding is explicitly out of scope (documented limitation, design choice), give it a row in the triage table with Decision = "Out of scope" and a one-line rationale. This closes the loop for any future reader wondering why a finding wasn't acted on.
 
 **Operator pre-approved umbrellas skip `backlog`.** When the operator drives the investigation directly and explicitly hands PM the findings to slice, open the umbrella with `enhancement,pm` (no `backlog`). The `backlog` label signals "PM hasn't looked at this yet" — operator-driven audits skip that queue by definition.
+
+## PRD for E2E test suite — 2026-05-22 (umbrella #65)
+
+**Search Before Building discipline when writing infrastructure PRDs.** Before scoping a test suite, read all existing test files, hook scripts, and playbooks end-to-end. The team-lead playbook contained a concrete gap (local worktree cleanup across PRs #56/#58/#59–#61) that became the operator's first-priority invariant. Reading the playbook first saved a round-trip.
+
+**Three-option harness shape presentation.** When the PRD involves a significant infrastructure choice (test harness approach), present the three most realistic options with pros/cons and a recommendation rather than picking silently. This is User Sovereignty applied to technical direction — the operator may have context (e.g., a preference for live-GitHub fidelity) that the PM doesn't. Use the PRD's Open Questions section to surface these.
+
+**Hook upgrade paths belong in child issues, not PRD prose.** The team has at least two documented "Hook N upgrade" paths (Hook 7 for label cleanup, Hook 7 for Designer gate — confusingly both numbered 7 in different docs). When a PRD references these, file them as separate `enhancement,backlog` child issues with the rationale in the body. This gives the operator a clean signal on each one rather than burying them in a PRD section.
+
+**"What exists today" section is mandatory for any infra/tooling PRD.** A test-suite PRD without a gap table is either duplicating existing coverage or missing the real gaps. The gap table (existing tests vs. what's uncovered) is the most valuable artifact PM produces in these PRDs — it converts the operator's vague "more tests" request into a specific delta.
