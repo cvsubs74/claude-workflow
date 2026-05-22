@@ -46,7 +46,8 @@ run_case "$HOOK" "git push origin mainline (no fp)"        "git push origin main
 run_case "$HOOK" "git push origin feat/main-fix"           "git push origin feat/main-fix"     "allow"
 run_case "$HOOK" "git push upstream main (different remote)" "git push upstream main"          "allow"
 run_case "$HOOK" "git push 'origin' 'feat/x' (quoted, allowed)" "git push 'origin' 'feat/x'"   "allow"
-run_case "$HOOK" "git commit -m fix (on feature branch)"   "git commit -m fix"                 "allow"
+CLAUDE_HOOK_TEST_BRANCH=feat/test run_case "$HOOK" "git commit -m fix (on feature branch)"   "git commit -m fix"   "allow"
+CLAUDE_HOOK_TEST_BRANCH=main     run_case "$HOOK" "git commit -m fix (on main, block)"        "git commit -m fix"   "block"
 run_case "$HOOK" "ls -la (non-git command)"                "ls -la"                            "allow"
 CLAUDE_HOOK_BYPASS=1 run_case "$HOOK" "bypass via CLAUDE_HOOK_BYPASS=1" "git push origin main" "allow"
 

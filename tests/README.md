@@ -23,7 +23,7 @@ bash tests/run.sh                  # all files
 bash tests/run.sh test_hooks.sh    # one file by name
 ```
 
-Prerequisites: `jq` (already used by every hook). Tests must be run from a **feature branch** because `no-direct-push-main.sh` consults the real git branch when checking commit-on-main behavior — running from `main` will fail one allow-case.
+Prerequisites: `jq` (already used by every hook).
 
 ## What each test file covers
 
