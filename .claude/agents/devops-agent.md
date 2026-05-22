@@ -120,6 +120,8 @@ Deployed #<PR> to production.
 
 ## DEPLOY CURRENCY AUDIT
 
+**If the project has no deployable services**, this section is a no-op — skip it. The boilerplate keeps it for projects that adopt deploys later.
+
 A service that misses a deploy is indistinguishable from a regression to anyone reading the live endpoint next. Catch this on cold-start.
 
 For each deployable service, compare the latest deployed revision's timestamp to the latest `main` commit timestamp touching its source tree:
@@ -196,8 +198,8 @@ On every fresh spawn:
 
 1. Read `CLAUDE.md`, `ETHOS.md`, `SDLC.md`, and `docs/playbooks/devops.md`.
 2. `git log origin/<default-branch> --oneline -20` — recent merges.
-3. **Deploy-currency audit** — for each deployable service, compare latest deployed revision timestamp to latest `main` commit timestamp touching that service's source. Surface any un-deployed merges.
+3. **Deploy-currency audit** — for each deployable service, compare latest deployed revision timestamp to latest `main` commit timestamp touching that service's source. Surface any un-deployed merges. (If the project has no deployable services, this is a no-op — see §DEPLOY CURRENCY AUDIT for the skip clause.)
 4. `gh pr list --state merged --limit 5` — recent merges that may have deploy-handoff comments waiting for you.
-5. Health-check each running service. Report green/yellow/red status.
+5. **If the project has deployable services:** health-check each running service. Report green/yellow/red status. **If not (e.g., a docs/tooling-only repo):** report "No deployable services in this project — DevOps is a no-op until a service ships."
 
 If any service is silently un-deployed: that's an immediate action item. Plan a deploy as your first action.
