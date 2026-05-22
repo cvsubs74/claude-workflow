@@ -107,15 +107,15 @@ gh pr edit <PR_NUM> --add-label "in-review"
 
 ## Step 3 — CR phase: review and merge
 
-Code Reviewer (you, acting in CR role) inspects the diff — it is a 1-line counter increment, nothing else. There is no logic change. Merge:
+Code Reviewer (you, acting in CR role) inspects the diff — it is a 1-line counter increment, nothing else. There is no logic change. Merge using the wrapper script (REQUIRED — do not call `gh pr merge` directly):
 
 ```bash
-gh pr merge <PR_NUM> --squash --delete-branch
+bin/merge-pr.sh <PR_NUM> --squash
 ```
 
-`--delete-branch` is required by Hook 6 (`pr-merge-requires-delete-branch.sh`). If the hook rejects the merge because `--delete-branch` is missing, that is a FAIL — report the exact hook error.
+`bin/merge-pr.sh` calls `gh pr merge <PR_NUM> --squash --delete-branch` and then immediately cleans up the local worktree and branch. It works in agent sub-sessions where `PostToolUse` hooks are bypassed (fix shipped in PR #84, closes issue #81).
 
-**Note on Hook 7:** Hook 7 (`auto-clean-worktree.sh`) should fire on merge to remove the local worktree automatically. As of 2026-05-22 Hook 7 is silent in agent context (issue #81 tracks the fix). Don't rely on it — clean up manually in Step 4 regardless.
+`--delete-branch` is still enforced — `bin/merge-pr.sh` always passes it. Hook 6 (`pr-merge-requires-delete-branch.sh`) does not fire on the wrapper call (it's not bare `gh pr merge`), but the invariant is preserved internally.
 
 ---
 
@@ -144,7 +144,7 @@ git worktree list | grep "heartbeat-<N+1>"
 # Expected: no output (worktree gone)
 ```
 
-If the worktree is still present (Hook 7 silent in agent context), remove it manually:
+`bin/merge-pr.sh` removes the worktree automatically as part of the merge. If it is still present (e.g. dirty worktree safety guard fired — check stderr from the merge step), remove it manually and record a PARTIAL:
 
 ```bash
 git worktree remove .worktrees/heartbeat-<N+1>
@@ -162,7 +162,7 @@ git ls-remote --heads origin chore/<ISSUE_NUM>-heartbeat-<N+1>
 # Expected: no output
 ```
 
-If the local branch survived, delete it:
+`bin/merge-pr.sh` deletes the local branch automatically. If it survived (e.g. the branch was checked out in another session), delete it manually and record a PARTIAL:
 
 ```bash
 git branch -D chore/<ISSUE_NUM>-heartbeat-<N+1>
@@ -190,10 +190,10 @@ If any criterion fails after manual remediation attempts:
 /heartbeat run <N+1> — PARTIAL
   Criterion 1 (issue closed):        PASS  — #<ISSUE_NUM> state=CLOSED
   Criterion 2 (PR cleaned up):       PASS  — 0 open PRs
-  Criterion 3 (worktree removed):    FAIL  — .worktrees/heartbeat-<N+1> still present; Hook 7 silent (#81 open)
+  Criterion 3 (worktree removed):    FAIL  — .worktrees/heartbeat-<N+1> still present; dirty worktree guard fired
   Criterion 4 (branch deleted):      PASS  — local gone, remote gone
 
-  Action: worktree left as artifact; file a follow-up or re-run after #81 is resolved.
+  Action: inspect worktree for uncommitted changes, clean manually, re-run check.
 ```
 
 If the pipeline could not complete at all:
@@ -211,5 +211,5 @@ If the pipeline could not complete at all:
 
 1. **`Closes #N` not `Refs #N`.** The heartbeat issue has no follow-on work; `Refs` leaves it dangling open. (Confirmed via PR #80 auto-closing issue #79.)
 2. **`in-review` on the PR, not just the issue.** Code Reviewer watches for `in-review` on the PR object. (`gh pr edit <N> --add-label in-review`)
-3. **`--delete-branch` is mandatory on merge.** Hook 6 rejects merges without it. The flag also cleans the remote tracking ref.
-4. **Don't trust Hook 7 until #81 is resolved.** Clean the worktree and local branch manually in the verification step regardless of whether the hook fires.
+3. **`--delete-branch` is mandatory on merge.** `bin/merge-pr.sh` passes it internally. Hook 6 does not fire on the wrapper call, but the invariant is still enforced.
+4. **Use `bin/merge-pr.sh`, not bare `gh pr merge`.** `PostToolUse` hooks do not fire in agent sub-sessions (anthropics/claude-code #34692). `bin/merge-pr.sh` runs cleanup explicitly, making worktree removal reliable in all contexts. (Fix shipped PR #84, closes #81.)

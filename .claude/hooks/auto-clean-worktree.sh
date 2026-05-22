@@ -23,12 +23,22 @@
 #     nothing — that is valid state, not an error.
 #   - Always exits 0. This hook must never block the agent's workflow.
 #
-# stdin shape (PostToolUse):
+# stdin shape (PostToolUse) — real Claude Code runtime fields (issue #81 fix):
 #   {
 #     "tool_name": "Bash",
 #     "tool_input": { "command": "<bash command string>" },
-#     "tool_response": { "output": "<stdout>", "error": "<stderr>" }
+#     "tool_response": { "stdout": "<stdout>", "stderr": "<stderr>", "exit_code": <int> }
 #   }
+#
+# NOTE: The runtime sends "stdout"/"stderr"/"exit_code" — NOT "output"/"error".
+# The original implementation read the wrong field names (issue #81, hypothesis 2).
+#
+# LIMITATION (issue #81, hypothesis 1 — the primary cause):
+#   PostToolUse hooks registered in settings.json do NOT fire for tool calls
+#   made inside agent sub-sessions (anthropics/claude-code #34692). This hook
+#   only fires when the operator's main session runs `gh pr merge` directly.
+#   For CR-agent merges (99% of real merges), use `bin/merge-pr.sh` instead,
+#   which includes the cleanup logic explicitly and works in all contexts.
 #
 # Environment overrides (for test isolation):
 #   CLAUDE_HOOK_BYPASS=1                 — skip all checks (ops emergency)
@@ -113,17 +123,33 @@ fi
 
 # ---------------------------------------------------------------------------
 # SECTION 3 — Did the command succeed?
-# PostToolUse stdin includes tool_response. Skip cleanup if the error field
-# is non-empty (merge failed) or output contains known gh error phrases.
+# PostToolUse stdin includes tool_response with fields: stdout, stderr, exit_code
+# (issue #81 fix: original code read .tool_response.error and .tool_response.output
+# which are NOT the real field names; corrected to .stderr and .stdout).
+#
+# We check:
+#   (a) exit_code != 0 AND merge failure phrases in stderr — hard skip.
+#   (b) stdout/stderr contains "not merged|failed to merge|^error" phrases.
+#
+# We do NOT bail on non-zero exit_code alone, because `gh pr merge` may return
+# exit code 1 when the GitHub merge succeeded but local branch deletion failed
+# (the "Cannot delete branch ... checked out at ..." constraint). In that case
+# the merge was real and cleanup should still proceed.
 # ---------------------------------------------------------------------------
-TOOL_ERROR="$(printf '%s' "$INPUT" | jq -r '.tool_response.error // ""')"
+TOOL_STDERR="$(printf '%s' "$INPUT" | jq -r '.tool_response.stderr // .tool_response.error // ""')"
+TOOL_STDOUT="$(printf '%s' "$INPUT" | jq -r '.tool_response.stdout // .tool_response.output // ""')"
+EXIT_CODE="$(printf '%s' "$INPUT" | jq -r '.tool_response.exit_code // 0')"
 
-if [[ -n "$TOOL_ERROR" ]]; then
+# Hard failure: non-zero exit AND known merge-failure phrases in stderr.
+# Accepting non-zero exit alone would be too aggressive (see above).
+if [[ "$EXIT_CODE" != "0" ]] && \
+   printf '%s' "$TOOL_STDERR" | command grep -qiE 'not merged|failed to merge|pull request.*not found|no pull requests found'; then
   exit 0
 fi
 
-TOOL_OUTPUT="$(printf '%s' "$INPUT" | jq -r '.tool_response.output // ""')"
-if printf '%s' "$TOOL_OUTPUT" | command grep -qiE 'not merged|failed to merge|^error'; then
+# Output-level failure indicators (cover gh printing errors to stdout too).
+COMBINED_OUTPUT="${TOOL_STDOUT}${TOOL_STDERR}"
+if printf '%s' "$COMBINED_OUTPUT" | command grep -qiE 'not merged|failed to merge|pull request.*not found'; then
   exit 0
 fi
 

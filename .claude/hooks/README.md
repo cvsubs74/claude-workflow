@@ -429,23 +429,37 @@ Claude Code passes a JSON object to the hook's stdin. For `PreToolUse`, the hook
 
 ---
 
-## Hook 7: `auto-clean-worktree.sh` — Done (#72)
+## Hook 7: `auto-clean-worktree.sh` — Done (#72, fixed #81)
 
-**Purpose:** After a successful `gh pr merge`, automatically remove the matching `.worktrees/` entry and delete the local branch. Closes the post-merge cleanup gap identified in `docs/playbooks/team-lead.md` — Dev agents consistently skipped manual cleanup after merge.
+**Purpose:** After a successful `gh pr merge` (in the operator's main session), automatically remove the matching `.worktrees/` entry and delete the local branch.
 
 **Trigger:** `PostToolUse` on tool `Bash` (fires after the Bash tool returns, not before)
 
-**Why PostToolUse?**
+**IMPORTANT LIMITATION (issue #81):** `PostToolUse` hooks registered in `settings.json` do NOT fire for Bash tool calls made inside agent sub-sessions (anthropics/claude-code #34692, open March 2026). This means Hook 7 is silent for every CR-agent merge — which is 99% of real-world merges. The primary fix for issue #81 is `bin/merge-pr.sh`, which CR agents call instead of `gh pr merge` directly. Hook 7 remains registered and still runs cleanup for main-session merges.
 
-Cleanup must happen *after* the merge succeeds, not before. `PreToolUse` cannot know whether the merge will succeed. `PostToolUse` fires after the Bash tool has already returned, so the hook can inspect `tool_response` to confirm success before acting.
+**PostToolUse stdin payload (real runtime fields — issue #81 fix):**
 
-**Ordering constraint (CR Slice 5 review note):**
+The Claude Code runtime sends `stdout`, `stderr`, and `exit_code` — NOT `output` and `error`:
 
-`git branch -D <branch>` fails with "Cannot delete branch '...' checked out at '...'" if a worktree still holds that branch. This hook **always removes the worktree first**, then deletes the local branch.
+```json
+{
+  "tool_name": "Bash",
+  "tool_input": { "command": "<bash command string>" },
+  "tool_response": { "stdout": "<stdout>", "stderr": "<stderr>", "exit_code": 0 }
+}
+```
+
+The original implementation read `.tool_response.error` and `.tool_response.output` (wrong field names). The corrected hook reads `.tool_response.stderr // .tool_response.error` (with fallback for backward compat) and `.tool_response.stdout // .tool_response.output`.
+
+**Exit-code-1 non-suppression (issue #81, Hypothesis 2 fix):**
+
+`gh pr merge` may return exit code 1 when the local branch deletion fails because a worktree still has it checked out ("Cannot delete branch '...' checked out at '...'"). The merge on GitHub already succeeded in this case. The hook does NOT bail on non-zero exit code alone — it only skips cleanup when a known merge-failure phrase is present in stderr AND exit code is non-zero.
+
+**Ordering constraint:** `git branch -D <branch>` fails if a worktree still has the branch checked out. This hook always removes the worktree first, then deletes the local branch.
 
 **What it does — happy path:**
 1. Detects a `gh pr merge` command in `tool_input.command`
-2. Checks `tool_response.error` — if non-empty, the merge failed; skip cleanup
+2. Checks for merge-failure phrase in stderr + non-zero exit_code — if both, skip cleanup
 3. Extracts the PR number from the command (same token-walking logic as Hook 3)
 4. Calls `gh pr view <N> --json headRefName` to get the merged branch name
 5. Scans `git worktree list --porcelain` for entries under `.worktrees/` on that branch
@@ -471,15 +485,6 @@ Cleanup must happen *after* the merge succeeds, not before. `PreToolUse` cannot 
 - `CLAUDE_HOOK_TEST_REPO_ROOT=<dir>` — override repo root instead of using `git rev-parse --show-toplevel`
 - `CLAUDE_HOOK_TEST_GH_BRANCH_CMD=<cmd>` — override the `gh pr view` call; the stub receives the PR number as `$1` and must print the branch name to stdout
 
-**PostToolUse stdin payload:**
-```json
-{
-  "tool_name": "Bash",
-  "tool_input": { "command": "<bash command string>" },
-  "tool_response": { "output": "<stdout>", "error": "<stderr>" }
-}
-```
-
 **Registration in `.claude/settings.json`:**
 ```json
 "PostToolUse": [
@@ -493,3 +498,24 @@ Cleanup must happen *after* the merge succeeds, not before. `PreToolUse` cannot 
 ```
 
 **Rule this enforces:** SDLC.md Step 7 — "After the PR merges: `git worktree remove .worktrees/<task-id>` and `git branch -D <branch>`."
+
+---
+
+## bin/merge-pr.sh — Issue #81 primary fix
+
+This is not a hook script — it lives in `bin/` and is called explicitly by CR agents.
+
+**Purpose:** Wrap `gh pr merge` with guaranteed post-merge worktree cleanup that works in all contexts including agent sub-sessions.
+
+**Why it exists:** `PostToolUse` hooks do not fire for agent sub-session tool calls (see Hook 7 IMPORTANT LIMITATION above). `bin/merge-pr.sh` runs the cleanup logic directly after the merge, bypassing the hook dispatch limitation.
+
+**Usage (CR agent only):**
+```bash
+bin/merge-pr.sh <PR-NUMBER> --squash
+```
+
+**Environment overrides (for test isolation):**
+- `CLAUDE_HOOK_BYPASS=1` — falls through to plain `gh pr merge` (no cleanup)
+- `CLAUDE_HOOK_TEST_REPO_ROOT=<dir>` — same as Hook 7
+- `CLAUDE_HOOK_TEST_GH_BRANCH_CMD=<cmd>` — same as Hook 7
+- `CLAUDE_HOOK_TEST_MERGE_CMD=<cmd>` — override the `gh pr merge` call itself; stub receives `<pr_num> --delete-branch <extra-flags>` and must print merge output to stdout
