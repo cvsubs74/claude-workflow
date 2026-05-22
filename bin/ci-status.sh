@@ -57,8 +57,8 @@ printf '%s' "$RUNS_JSON" | jq -r '.[] |
       # GNU date (Linux)
       created_s="$(date -d "$ts" +%s)"
     else
-      # BSD date (macOS) — strip trailing Z
-      created_s="$(date -j -f '%Y-%m-%dT%H:%M:%SZ' "${ts%Z}" +%s 2>/dev/null || echo 0)"
+      # BSD date (macOS) — format includes Z to match input character-for-character
+      created_s="$(date -j -f '%Y-%m-%dT%H:%M:%SZ' "$ts" +%s 2>/dev/null || echo 0)"
     fi
     now_s="$(date +%s)"
     delta=$(( now_s - created_s ))
