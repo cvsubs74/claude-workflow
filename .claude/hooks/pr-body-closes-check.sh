@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pr-body-closes-check.sh — Hook 5 of 5
+# pr-body-closes-check.sh — Hook 5 of 6
 #
 # PreToolUse / Bash hook: warn when `gh pr create` is called without a
 # GitHub auto-close keyword (Closes/Close/Fix/Fixes/Resolve/Resolves #N)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pr-merge-requires-in-review.sh — Hook 3 of 5
+# pr-merge-requires-in-review.sh — Hook 3 of 6
 #
 # PreToolUse / Bash hook: block `gh pr merge` when the PR does not carry
 # the `in-review` label.

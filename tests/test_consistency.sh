@@ -85,6 +85,25 @@ assert_set_eq "hook inventory: filesystem == settings.json registration" \
 assert_set_eq "hook inventory: filesystem == README inventory" \
   "$HOOKS_FS" "$HOOKS_README"
 
+# Check 2b — Hook header "Hook X of N" count matches filesystem count.
+# Catches the class of drift fixed in issue #35 (headers not updated when a
+# hook is added).
+HOOKS_FS_COUNT="$(cd "$HOOKS_DIR" && ls -1 *.sh | wc -l | tr -d ' ')"
+HOOKS_HEADER_N="$(grep -h "Hook [0-9]* of [0-9]*" "$HOOKS_DIR"/*.sh \
+  | grep -o "of [0-9]*" | awk '{print $2}' | sort -u)"
+if [[ "$(printf '%s\n' "$HOOKS_HEADER_N" | wc -l | tr -d ' ')" -ne 1 ]]; then
+  printf '  FAIL  hook header count: headers disagree on total (values: %s)\n' "$HOOKS_HEADER_N"
+  FAIL=$(( FAIL + 1 ))
+elif [[ "$HOOKS_HEADER_N" -ne "$HOOKS_FS_COUNT" ]]; then
+  printf '  FAIL  hook header count: headers say %s of %s but filesystem has %s hooks\n' \
+    "X" "$HOOKS_HEADER_N" "$HOOKS_FS_COUNT"
+  FAIL=$(( FAIL + 1 ))
+else
+  printf '  PASS  hook header count: all headers say "of %s" and %s .sh files exist\n' \
+    "$HOOKS_HEADER_N" "$HOOKS_FS_COUNT"
+  PASS=$(( PASS + 1 ))
+fi
+
 # ===========================================================================
 # Check 3 — Agent topology: system-role-boundaries ↔ .claude/agents/*.md
 # ---------------------------------------------------------------------------
