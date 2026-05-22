@@ -84,3 +84,4 @@ Run these from the Claude Code prompt:
 - `/investigate` — systematic root-cause debugging. No fixes without an investigation.
 - `/ship` — sync, run tests, push, open a PR (manual fallback for the Dev/CR loop).
 - `/retro` — weekly retro summarizing shipping streaks, test health, growth opportunities.
+- `/heartbeat` — live SDLC dry-run: ship a canary change through PM → Dev → CR, verify four exit-state criteria, report PASS / PARTIAL / FAIL.
