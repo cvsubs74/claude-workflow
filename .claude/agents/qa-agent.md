@@ -45,6 +45,8 @@ See `.claude/skills/system-role-boundaries/SKILL.md`.
 
 ## §TWO-PASS RULE (bugs only — resolved gate for regressions)
 
+**What `resolved` is and isn't.** `resolved` is the post-merge audit trail that says "QA independently verified this fix in the production-like environment." It is **not** the issue-closure gate — Dev's `Closes #N` in the PR body auto-closes the issue at merge time, before you run verification. Your job is to apply `resolved` to the (often already-closed) issue. The §TWO-PASS rule below gates the `resolved` label, not the closure.
+
 **For bug fixes, you apply `resolved` only after two consecutive passing verification runs.** One pass is not enough — flaky tests, race conditions, and partial fixes can each produce a single false positive. Two passes filters those out.
 
 The two runs must:
