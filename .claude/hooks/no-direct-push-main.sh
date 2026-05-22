@@ -22,6 +22,9 @@
 # Operator override: set CLAUDE_HOOK_BYPASS=1 to skip all checks.
 # Protected-branch list: set CLAUDE_HOOK_PROTECTED_BRANCHES="main master develop"
 # to override the default ("main master"). Space-separated list of branch names.
+# Test-branch override (for tests and CI):
+#   CLAUDE_HOOK_TEST_BRANCH=<branch>  use this value instead of git symbolic-ref
+#   (makes the commit-guard check hermetic regardless of the real checkout branch)
 # See .claude/hooks/README.md for full escape-hatch documentation.
 
 set -euo pipefail
@@ -187,8 +190,11 @@ fi
 
 # --- Check 2: git commit while on main / master ---
 # Determine the current branch from git; if we're not in a git repo, allow through.
+# CLAUDE_HOOK_TEST_BRANCH overrides real git state (for hermetic self-tests and CI).
 CURRENT_BRANCH=""
-if git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
+if [[ -n "${CLAUDE_HOOK_TEST_BRANCH:-}" ]]; then
+  CURRENT_BRANCH="$CLAUDE_HOOK_TEST_BRANCH"
+elif git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
   CURRENT_BRANCH="$(git symbolic-ref --short HEAD 2>/dev/null || echo "")"
 fi
 

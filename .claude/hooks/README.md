@@ -33,8 +33,6 @@ Run just the hook tests (skipping consistency + repo-structure checks):
 bash tests/run.sh test_hooks.sh
 ```
 
-Tests must be run from a **feature branch** — Hook 1's commit-guard case reads real git state and will block on `main`.
-
 See `tests/README.md` for the full layout (`tests/lib.sh` helpers, `tests/test_consistency.sh` cross-doc checks, `tests/test_repo.sh` structure sanity).
 
 ---
@@ -84,6 +82,24 @@ export CLAUDE_HOOK_PROTECTED_BRANCHES="main master develop release"
 ```
 
 Add the export to your shell profile or to the `env` block in `.claude/settings.json` for project-wide enforcement.
+
+---
+
+### Test-branch override (for tests and CI)
+
+The commit-guard check (Check 2) calls `git symbolic-ref --short HEAD` to read the real current branch. This makes the "allow commit on feature branch" test flaky when the test runner is checked out on `main`.
+
+Set `CLAUDE_HOOK_TEST_BRANCH=<branch>` to override the branch lookup with a fixed value:
+
+```bash
+# Simulate being on a feature branch (commit allowed)
+CLAUDE_HOOK_TEST_BRANCH=feat/test run_case "$HOOK" "..." "git commit -m fix" "allow"
+
+# Simulate being on main (commit blocked)
+CLAUDE_HOOK_TEST_BRANCH=main run_case "$HOOK" "..." "git commit -m fix" "block"
+```
+
+The `tests/test_hooks.sh` Hook 1 section uses this pattern so the suite is hermetic regardless of the checkout branch.
 
 ---
 
