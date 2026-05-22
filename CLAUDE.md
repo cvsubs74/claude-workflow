@@ -4,7 +4,7 @@ This file provides guidance to [Claude Code](https://docs.anthropic.com/en/docs/
 
 > Fill in the `{{PLACEHOLDERS}}` for your project. `bin/init-project.sh` does this interactively.
 
-# {{PROJECT_NAME}} — Claude Code Agent Team
+# claude-workflow — Claude Code Agent Team
 
 ## Required cold-start reading
 
@@ -18,11 +18,11 @@ If a doc is missing, that is a signal — propose creating it rather than workin
 
 ## Operating posture (must-know before any action)
 
-- **Multi-agent team workflow.** This repo is driven by 8 specialist roles (Team Lead, PM, Triage, Dev, QA, Code Reviewer, DevOps, Designer) defined under `.claude/agents/`. Pick the right specialist via the `Agent` tool — don't write code directly when a Dev/QA/CR specialist is appropriate.
+- **Multi-agent team workflow.** This repo is driven by 7 specialist roles (PM, Triage, Dev, QA, Code Reviewer, DevOps, Designer) coordinated by the Team Lead — defined under `.claude/agents/`. Pick the right specialist via the `Agent` tool — don't write code directly when a Dev/QA/CR specialist is appropriate.
 - **PRD → Design Doc → code.** New user-facing features require `docs/prd/PRD-<topic>.md` then `docs/design/DESIGN-<topic>.md` before implementation. Bug fixes, refactors, chores, and hotfixes skip the gate (see `SDLC.md` Step 0).
 - **No direct commits to the default branch.** Every change goes through a PR; squash-merge after CI green + review.
 - **Architecture doc currency.** Update `docs/ARCHITECTURE.md` + append a Change Log row whenever a change touches module shape, data flow, schema, or constraints.
-- **Worktree hygiene.** Each specialist session creates its own `git worktree add` (e.g. `.worktrees/<task-id>`) off `origin/{{DEFAULT_BRANCH}}`. Never reuse another session's worktree, and never edit inside the primary repo path — it's on whoever's branch.
+- **Worktree hygiene.** Each specialist session creates its own `git worktree add` (e.g. `.worktrees/<task-id>`) off `origin/main`. Never reuse another session's worktree, and never edit inside the primary repo path — it's on whoever's branch.
 
 ## Coding discipline
 
@@ -40,16 +40,16 @@ Behavioral guidelines for code changes — bias toward caution over speed (use j
 
 ```bash
 # Tests
-{{TEST_COMMAND}}
+bash tests/run.sh
 
 # Lint / type check
-{{LINT_COMMAND}}
+# CI runs shellcheck on bin/ + markdown sanity; no local lint command
 
 # Dev server (frontend or backend)
-{{DEV_COMMAND}}
+# (no dev server — this repo is a config/hooks template, not a deployed service)
 
 # Deploy
-{{DEPLOY_COMMAND}}
+# (no deploy target — see docs/ARCHITECTURE.md)
 ```
 
 ## Architecture in one paragraph
