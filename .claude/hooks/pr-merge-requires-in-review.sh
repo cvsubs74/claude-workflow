@@ -63,17 +63,22 @@ if [[ -z "$COMMAND" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Detection: does this command contain `gh pr merge`?
+# Detection: does this command contain `gh pr merge` as an actual command
+# invocation (not inside a quoted argument of another command)?
 #
-# Strategy: scan every semicolon/&&/||-separated segment of the compound
-# command for a token sequence matching `gh pr merge`. This handles:
-#   - Simple: gh pr merge 5
-#   - Compound: cd /tmp && gh pr merge 5
-#   - Piped: echo foo | gh pr merge 5  (pathological but handled)
+# Strategy: require that `gh pr merge` appears at the start of the full
+# command string OR immediately after a shell separator (;  &&  ||  |).
+# This handles:
+#   - Simple:    gh pr merge 5
+#   - Compound:  cd /tmp && gh pr merge 5
+# …and avoids false positives (spurious warnings) from:
+#   - gh pr create --title "merge xyz"   ← 'merge' is an argument value
+#   - grep "gh pr merge" SDLC.md         ← 'gh pr merge' is a grep argument
 #
 # We use grep -qE rather than bash regex to avoid bash ERE portability issues.
 # ---------------------------------------------------------------------------
-if ! printf '%s' "$COMMAND" | command grep -qE '\bgh\b.*\bpr\b.*\bmerge\b'; then
+GH_MERGE_RE='(^|;|&&|\|\||[|])[[:space:]]*gh[[:space:]]+pr[[:space:]]+merge[[:space:]|$]'
+if ! printf '%s' "$COMMAND" | command grep -qE "$GH_MERGE_RE"; then
   # Not a gh pr merge call — allow through
   exit 0
 fi
@@ -104,7 +109,7 @@ fi
 
 # Step 1: isolate the gh pr merge segment from a compound command.
 # grep -oE extracts the matching portion; head -1 takes the first match.
-MERGE_SEGMENT="$(printf '%s' "$COMMAND" | command grep -oE '\bgh\b[^;&|]*\bpr\b[^;&|]*\bmerge\b.*' | head -1)"
+MERGE_SEGMENT="$(printf '%s' "$COMMAND" | command grep -oE 'gh[[:space:]]+pr[[:space:]]+merge([[:space:]].*)?$' | head -1)"
 
 if [[ -z "$MERGE_SEGMENT" ]]; then
   # Couldn't isolate segment — fail open

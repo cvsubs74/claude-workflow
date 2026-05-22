@@ -56,19 +56,29 @@ if [[ -z "$COMMAND" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Detection: does this command contain the adjacent token sequence `gh pr merge`?
+# Detection: does this command contain the adjacent token sequence `gh pr merge`
+# as an actual command invocation (not inside a quoted argument)?
 #
-# The regex requires the three tokens to appear with only whitespace between
-# them. This avoids false positives like `gh pr create --title "merge xyz"`
-# where the word "merge" appears as part of an unrelated argument.
+# The regex requires the three tokens to appear:
+#   - at the start of the full command string, OR
+#   - after a shell separator (;  &&  ||  |)
+# …with only optional whitespace before `gh`.
+#
+# This prevents false positives from commands like:
+#   grep "gh pr merge" SDLC.md          ← 'gh pr merge' is an argument, not a cmd
+#   echo "use gh pr merge --delete-branch"  ← same
+# while still matching:
+#   gh pr merge 5                        ← direct invocation
+#   cd /tmp && gh pr merge 5             ← segment after &&
 # ---------------------------------------------------------------------------
-if ! printf '%s' "$COMMAND" | command grep -qE '\bgh[[:space:]]+pr[[:space:]]+merge\b'; then
+GH_MERGE_RE='(^|;|&&|\|\||[|])[[:space:]]*gh[[:space:]]+pr[[:space:]]+merge[[:space:]|$]'
+if ! printf '%s' "$COMMAND" | command grep -qE "$GH_MERGE_RE"; then
   # Not a gh-pr-merge call — allow through
   exit 0
 fi
 
 # Isolate the segment starting at the adjacent `gh pr merge` for token walking.
-MERGE_SEGMENT="$(printf '%s' "$COMMAND" | command grep -oE '\bgh[[:space:]]+pr[[:space:]]+merge\b.*' | head -1)"
+MERGE_SEGMENT="$(printf '%s' "$COMMAND" | command grep -oE 'gh[[:space:]]+pr[[:space:]]+merge([[:space:]].*)?$' | head -1)"
 
 if [[ -z "$MERGE_SEGMENT" ]]; then
   # Couldn't isolate segment — fail open

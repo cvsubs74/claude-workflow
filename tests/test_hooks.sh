@@ -138,6 +138,30 @@ run_case "$HOOK" "gh issue edit 5 --add-label in-review"   "gh issue edit 5 --ad
 run_case "$HOOK" "ls -la (non-gh)"                         "ls -la"                                                   "allow"
 run_case "$HOOK" "git push origin feat/11-branch"          "git push origin feat/11-branch"                           "allow"
 
+# Quoted-arg false-positive regression (issues #27/#28): 'merge' inside a
+# quoted argument of a non-merge gh command must not trigger the hook —
+# not even as a spurious warning.
+# run_case only checks exit code; these also check for silent stderr.
+run_case "$HOOK" "gh pr create with 'merge' in title (no block)" \
+  'gh pr create --title "merge xyz"' "allow"
+# Inline stderr check — run_case only validates exit 0; we need no-noise too.
+_check_no_noise() {
+  local label="$1" cmd="$2"
+  local payload stderr_out
+  payload="$(emit_payload "$cmd")"
+  stderr_out="$(printf '%s' "$payload" | CLAUDE_HOOK_GH_LABELS_CMD="$CLAUDE_HOOK_GH_LABELS_CMD" bash "$HOOK" 2>&1 >/dev/null || true)"
+  if [[ -z "$stderr_out" ]]; then
+    printf '  PASS  %-62s  (allow+silent)\n' "$label"
+    PASS=$(( PASS + 1 ))
+  else
+    printf '  FAIL  %-62s  spurious stderr: %s\n' "$label" "$stderr_out"
+    FAIL=$(( FAIL + 1 ))
+  fi
+}
+_check_no_noise "gh pr create --title 'merge xyz' silent (no spurious warning)"  'gh pr create --title "merge xyz"'
+_check_no_noise "grep 'gh pr merge' (non-gh, silent)"                            'grep "gh pr merge" SDLC.md'
+unset -f _check_no_noise
+
 CLAUDE_HOOK_BYPASS=1 run_case "$HOOK" "bypass with blocked PR"  "gh pr merge 5"                                       "allow"
 
 unset CLAUDE_HOOK_GH_LABELS_CMD
@@ -296,6 +320,12 @@ run_case "$HOOK" "gh pr create with 'merge' in title"      'gh pr create --title
 run_case "$HOOK" "gh issue close 5"                        "gh issue close 5"                                         "allow"
 run_case "$HOOK" "git push origin feat/foo"                "git push origin feat/foo"                                 "allow"
 run_case "$HOOK" "ls -la (non-gh)"                         "ls -la"                                                   "allow"
+
+# Quoted-arg false-positive regression (issue #28): 'gh pr merge' tokens
+# inside a quoted argument of another command must not trigger the block.
+run_case "$HOOK" "grep 'gh pr merge' in quoted arg"        'grep "gh pr merge" SDLC.md'                               "allow"
+run_case "$HOOK" "echo 'gh pr merge' in quoted arg"        'echo "use gh pr merge --delete-branch"'                   "allow"
+run_case "$HOOK" "--body-file workaround with merge phrase" 'gh pr create --body-file /tmp/f.txt'                     "allow"
 
 CLAUDE_HOOK_BYPASS=1 run_case "$HOOK" "bypass with blocked form" "gh pr merge 5 --squash" "allow"
 
