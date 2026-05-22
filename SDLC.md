@@ -135,13 +135,15 @@ CHANGES REQUESTED — <what to change> → Dev iterates
 DISCUSS — <open question> → conversation
 ```
 
-5. On LGTM, squash-merges **with `--delete-branch`** to keep `origin` clean:
+5. On LGTM, squash-merges using `bin/merge-pr.sh` (REQUIRED — never call `gh pr merge` directly from agent context):
 
    ```bash
-   gh pr merge <N> --squash --delete-branch
+   bin/merge-pr.sh <N> --squash
    ```
 
-   `--delete-branch` is mandatory — Hook 6 (`pr-merge-requires-delete-branch.sh`) blocks `gh pr merge` calls without it. The repo setting `delete_branch_on_merge=true` is a server-side safety net; the hook is the command-time enforcement that also cleans the local tracking ref.
+   `bin/merge-pr.sh` calls `gh pr merge <N> --squash --delete-branch` and then immediately runs worktree cleanup. This is required because `PostToolUse` hooks from `settings.json` do not fire in agent sub-sessions (anthropics/claude-code #34692) — Hook 7 is silent for agent-driven merges. `bin/merge-pr.sh` runs cleanup explicitly, making it work in all contexts.
+
+   `--delete-branch` is still mandatory and enforced by Hook 6 (`pr-merge-requires-delete-branch.sh`) — `bin/merge-pr.sh` always passes it. The repo setting `delete_branch_on_merge=true` is the server-side safety net.
 
 6. The merge comment is the FINAL CLOSER: it summarizes what shipped and pings the next owner (DevOps for deploy, QA for verification).
 

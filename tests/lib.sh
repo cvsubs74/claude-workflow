@@ -141,16 +141,21 @@ assert_set_eq() {
 }
 
 # ---------------------------------------------------------------------------
-# emit_post_payload <cmd> [tool_output] [tool_error]
+# emit_post_payload <cmd> [tool_stdout] [tool_stderr] [exit_code]
 # Builds the PostToolUse JSON payload for Hook 7's stdin.
-# tool_output and tool_error default to empty string.
+# Uses the real Claude Code runtime field names (issue #81 fix):
+#   tool_response: { "stdout": ..., "stderr": ..., "exit_code": ... }
+# Also emits the legacy "output"/"error" fields for backward compat with any
+# tests that were written before the field-name correction.
+# tool_stdout, tool_stderr, and exit_code default to empty / 0.
 # ---------------------------------------------------------------------------
 emit_post_payload() {
   local cmd="$1"
   local out="${2:-}"
   local err="${3:-}"
-  jq -cn --arg cmd "$cmd" --arg out "$out" --arg err "$err" \
-    '{"tool_name":"Bash","tool_input":{"command":$cmd},"tool_response":{"output":$out,"error":$err}}'
+  local exit_code="${4:-0}"
+  jq -cn --arg cmd "$cmd" --arg out "$out" --arg err "$err" --argjson ec "$exit_code" \
+    '{"tool_name":"Bash","tool_input":{"command":$cmd},"tool_response":{"stdout":$out,"stderr":$err,"exit_code":$ec}}'
 }
 
 # ---------------------------------------------------------------------------

@@ -400,16 +400,27 @@ run_case_post "$HOOK" "git status (non-merge command)" \
   "git status" "silent"
 
 # ---------------------------------------------------------------------------
-# Test 2 — gh pr merge with error in tool_response: skip cleanup
+# Test 2 — gh pr merge with stderr merge-failure phrase + non-zero exit: skip cleanup
+# (issue #81 fix: field name corrected from "error" to "stderr")
 # ---------------------------------------------------------------------------
-run_case_post "$HOOK" "gh pr merge 99 — tool_response.error set → skip" \
-  "gh pr merge 99 --squash --delete-branch" \
-  "silent" "" "GraphQL: Pull Request is not mergeable."
+# emit_post_payload now sends exit_code=1 via 4th arg; stderr is 3rd arg
+HOOK7_FAIL_PAYLOAD="$(jq -cn \
+  --arg cmd "gh pr merge 99 --squash --delete-branch" \
+  --arg err "GraphQL: Pull Request is not mergeable." \
+  '{"tool_name":"Bash","tool_input":{"command":$cmd},"tool_response":{"stdout":"","stderr":$err,"exit_code":1}}')"
+HOOK7_FAIL_STDERR="$(printf '%s' "$HOOK7_FAIL_PAYLOAD" | bash "$HOOK" 2>&1 >/dev/null || true)"
+if ! printf '%s' "$HOOK7_FAIL_STDERR" | command grep -q "\[auto-clean-worktree\] Removing"; then
+  printf '  PASS  %-62s  (silent)\n' "gh pr merge 99 — stderr merge-failure + exit 1 → skip"
+  PASS=$(( PASS + 1 ))
+else
+  printf '  FAIL  %-62s  expected=silent actual=cleanup\n' "gh pr merge 99 — stderr merge-failure + exit 1 → skip"
+  FAIL=$(( FAIL + 1 ))
+fi
 
 # ---------------------------------------------------------------------------
-# Test 3 — gh pr merge with 'not merged' in output: skip cleanup
+# Test 3 — gh pr merge with 'not merged' in stdout: skip cleanup
 # ---------------------------------------------------------------------------
-run_case_post "$HOOK" "gh pr merge 99 — output contains 'not merged' → skip" \
+run_case_post "$HOOK" "gh pr merge 99 — stdout contains 'not merged' → skip" \
   "gh pr merge 99 --squash --delete-branch" \
   "silent" "error: not merged" ""
 
@@ -528,6 +539,112 @@ run_case_post "$HOOK" "no .worktrees/ directory → silent" \
 run_case_post "$HOOK" "grep 'gh pr merge' in quoted arg → silent" \
   'grep "gh pr merge" SDLC.md' \
   "silent"
+
+# ---------------------------------------------------------------------------
+# Tests 13-16 — Issue #81 regression tests
+#
+# These tests validate the two hypotheses from issue #81:
+#
+# Test 13: FIELD NAME FIX — real runtime sends "stdout"/"stderr"/"exit_code",
+#   not "output"/"error". Hook must read the right fields.
+#
+# Test 14: EXIT-CODE-1 NON-SUPPRESSION — gh pr merge may return exit code 1
+#   when local branch deletion fails but the GitHub merge succeeded.
+#   Hook must NOT bail on exit_code=1 alone when no merge-failure phrase exists
+#   in stderr. (This is Hypothesis 2 from issue #81.)
+#
+# Tests 15-16: merge-pr.sh wrapper — validates that bin/merge-pr.sh cleans up
+#   worktrees when called with a stub merge command that succeeds/fails.
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- HOOK 7 / issue #81 regression tests ---"
+
+# Test 13 — Real runtime field names: stdout/stderr payload triggers cleanup
+hook7_reset_worktree 2>/dev/null || true
+REAL_FIELDS_PAYLOAD="$(jq -cn \
+  --arg cmd "gh pr merge 99 --squash --delete-branch" \
+  '{"tool_name":"Bash","tool_input":{"command":$cmd},"tool_response":{"stdout":"","stderr":"","exit_code":0}}')"
+REAL_FIELDS_STDERR="$(
+  env CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO" \
+      CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$BRANCH_STUB_SCRIPT" \
+  bash "$HOOK" <<< "$REAL_FIELDS_PAYLOAD" 2>&1 >/dev/null || true)"
+if printf '%s' "$REAL_FIELDS_STDERR" | command grep -q "\[auto-clean-worktree\] Removing"; then
+  printf '  PASS  %-62s  (cleanup)\n' "real runtime fields stdout/stderr/exit_code → cleanup fires"
+  PASS=$(( PASS + 1 ))
+else
+  printf '  FAIL  %-62s  expected=cleanup actual=silent (stderr: %s)\n' \
+    "real runtime fields stdout/stderr/exit_code → cleanup fires" "$REAL_FIELDS_STDERR"
+  FAIL=$(( FAIL + 1 ))
+fi
+
+hook7_reset_worktree
+
+# Test 14 — Exit code 1 (local branch conflict) does NOT suppress cleanup
+# when no merge-failure phrase is in stderr.
+# This replicates the "gh pr merge returns 1 because local branch is checked out"
+# scenario from Hypothesis 2 of issue #81.
+EXIT1_PAYLOAD="$(jq -cn \
+  --arg cmd "gh pr merge 99 --squash --delete-branch" \
+  --arg err "error: Cannot delete branch 'feat/99-test-hook7' checked out at '/tmp/foo'" \
+  '{"tool_name":"Bash","tool_input":{"command":$cmd},"tool_response":{"stdout":"Merged pull request #99","stderr":$err,"exit_code":1}}')"
+EXIT1_STDERR="$(
+  env CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO" \
+      CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$BRANCH_STUB_SCRIPT" \
+  bash "$HOOK" <<< "$EXIT1_PAYLOAD" 2>&1 >/dev/null || true)"
+if printf '%s' "$EXIT1_STDERR" | command grep -q "\[auto-clean-worktree\] Removing"; then
+  printf '  PASS  %-62s  (cleanup)\n' "exit_code=1 (local-branch conflict) does NOT suppress cleanup"
+  PASS=$(( PASS + 1 ))
+else
+  printf '  FAIL  %-62s  expected=cleanup actual=silent (stderr: %s)\n' \
+    "exit_code=1 (local-branch conflict) does NOT suppress cleanup" "$EXIT1_STDERR"
+  FAIL=$(( FAIL + 1 ))
+fi
+
+hook7_reset_worktree
+
+# Test 15 — bin/merge-pr.sh: successful merge stub triggers cleanup
+MERGE_PR_SCRIPT="$REPO_ROOT/bin/merge-pr.sh"
+# Build a stub merge command that prints "Merged pull request" and exits 0
+MERGE_SUCCESS_STUB="${HOOK7_TMPDIR}/merge_success_stub.sh"
+printf '#!/usr/bin/env bash\necho "Merged pull request #99 from feat/99-test-hook7"\nexit 0\n' \
+  > "$MERGE_SUCCESS_STUB"
+chmod +x "$MERGE_SUCCESS_STUB"
+
+MERGE_PR_STDERR="$(
+  env CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO" \
+      CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$BRANCH_STUB_SCRIPT" \
+      CLAUDE_HOOK_TEST_MERGE_CMD="$MERGE_SUCCESS_STUB" \
+  bash "$MERGE_PR_SCRIPT" 99 --squash 2>&1 >/dev/null || true)"
+
+if printf '%s' "$MERGE_PR_STDERR" | command grep -q "\[merge-pr\] Removing worktree"; then
+  printf '  PASS  %-62s  (cleanup)\n' "bin/merge-pr.sh: success stub → worktree cleanup fires"
+  PASS=$(( PASS + 1 ))
+else
+  printf '  FAIL  %-62s  expected cleanup log (stderr: %s)\n' \
+    "bin/merge-pr.sh: success stub → worktree cleanup fires" "$MERGE_PR_STDERR"
+  FAIL=$(( FAIL + 1 ))
+fi
+
+# Test 16 — bin/merge-pr.sh: failed merge stub does NOT trigger cleanup
+MERGE_FAIL_STUB="${HOOK7_TMPDIR}/merge_fail_stub.sh"
+printf '#!/usr/bin/env bash\necho "GraphQL: Could not resolve to a PullRequest"\nexit 1\n' \
+  > "$MERGE_FAIL_STUB"
+chmod +x "$MERGE_FAIL_STUB"
+
+MERGE_FAIL_STDERR="$(
+  env CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO" \
+      CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$BRANCH_STUB_SCRIPT" \
+      CLAUDE_HOOK_TEST_MERGE_CMD="$MERGE_FAIL_STUB" \
+  bash "$MERGE_PR_SCRIPT" 99 --squash 2>&1 >/dev/null || true)"
+
+if ! printf '%s' "$MERGE_FAIL_STDERR" | command grep -q "\[merge-pr\] Removing worktree"; then
+  printf '  PASS  %-62s  (no cleanup)\n' "bin/merge-pr.sh: failed merge stub → cleanup skipped"
+  PASS=$(( PASS + 1 ))
+else
+  printf '  FAIL  %-62s  expected no cleanup (stderr: %s)\n' \
+    "bin/merge-pr.sh: failed merge stub → cleanup skipped" "$MERGE_FAIL_STDERR"
+  FAIL=$(( FAIL + 1 ))
+fi
 
 # ===========================================================================
 print_summary

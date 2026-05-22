@@ -46,11 +46,12 @@ invoke_hook7() {
   local repo_root="$5"
 
   local payload
+  # Use real runtime field names (issue #81 fix): stdout/stderr/exit_code
   payload="$(jq -cn \
     --arg cmd "$cmd" \
     --arg out "$tool_out" \
     --arg err "$tool_err" \
-    '{"tool_name":"Bash","tool_input":{"command":$cmd},"tool_response":{"output":$out,"error":$err}}')"
+    '{"tool_name":"Bash","tool_input":{"command":$cmd},"tool_response":{"stdout":$out,"stderr":$err,"exit_code":0}}')"
 
   # Use `env` to pass env vars to the entire pipeline rather than inline assignment
   # (inline assignment only applies to the first command, not the piped bash process).
@@ -231,6 +232,71 @@ fi
 git -C "$SANDBOX_WORK" worktree remove "$H7_OOS_DIR" --force 2>/dev/null || true
 git -C "$SANDBOX_WORK" worktree prune 2>/dev/null || true
 git -C "$SANDBOX_WORK" branch -D "$H7_OOS_BRANCH" 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
+# SCENARIO 5 — bin/merge-pr.sh cleans up worktree in agent-context simulation.
+#
+# Issue #81 primary fix: since PostToolUse hooks don't fire in agent sub-sessions,
+# CR agents must call bin/merge-pr.sh instead of bare `gh pr merge`.
+# This scenario validates that bin/merge-pr.sh:
+#   (a) merges the PR (via stub)
+#   (b) removes the worktree    INVARIANT: hook7-worktree-cleanup
+#   (c) deletes the local branch INVARIANT: hook7-worktree-cleanup
+#
+# Also validates hypothesis #2 fix: merge-pr.sh continues cleanup even when
+# gh pr merge exits 1 due to local-branch checkout conflict.
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- Scenario 5: bin/merge-pr.sh — agent-context cleanup path ---"
+
+MERGE_PR_BIN="$_REPO_ROOT/bin/merge-pr.sh"
+
+H7_S5_BRANCH="feat/81-merge-pr-agent-context"
+H7_S5_TASK="hook7-e2e-s5"
+
+e2e_create_worktree "$H7_S5_TASK" "$H7_S5_BRANCH"
+git -C "$SANDBOX_WORK" push --quiet origin "$H7_S5_BRANCH"
+
+assert_worktree_exists "$H7_S5_TASK"
+assert_branch_exists   "$H7_S5_BRANCH"
+
+# Stub merge command: prints "Merged pull request" (merge succeeded) but also
+# prints a local-branch conflict line and exits 1 — simulating the gh pr merge
+# exit-code-1 edge case from Hypothesis 2 of issue #81.
+H7_S5_MERGE_STUB="$SANDBOX_ROOT/merge_stub_s5.sh"
+cat > "$H7_S5_MERGE_STUB" <<STUB
+#!/usr/bin/env bash
+printf 'Merged pull request #1 from %s into main\n' "$H7_S5_BRANCH"
+printf 'error: Cannot delete branch '"'"'%s'"'"' checked out at '"'"'/tmp/some-worktree'"'"'\n' "$H7_S5_BRANCH" >&2
+exit 1
+STUB
+chmod +x "$H7_S5_MERGE_STUB"
+
+# Stub branch lookup: returns H7_S5_BRANCH for any PR number
+H7_S5_STUB="$SANDBOX_ROOT/hook7_branch_stub_s5.sh"
+printf '#!/usr/bin/env bash\necho "%s"\n' "$H7_S5_BRANCH" > "$H7_S5_STUB"
+chmod +x "$H7_S5_STUB"
+
+MERGE_PR_STDERR="$(env \
+  CLAUDE_HOOK_TEST_REPO_ROOT="$SANDBOX_WORK" \
+  CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$H7_S5_STUB" \
+  CLAUDE_HOOK_TEST_MERGE_CMD="$H7_S5_MERGE_STUB" \
+  bash "$MERGE_PR_BIN" 1 --squash 2>&1 >/dev/null || true)"
+
+# INVARIANT: hook7-worktree-cleanup — worktree directory removed
+assert_worktree_removed "$H7_S5_TASK"  # INVARIANT: hook7-worktree-cleanup
+
+# INVARIANT: hook7-worktree-cleanup — local branch deleted
+assert_branch_deleted "$H7_S5_BRANCH"  # INVARIANT: hook7-worktree-cleanup
+
+# merge-pr.sh must have logged cleanup action
+if printf '%s' "$MERGE_PR_STDERR" | grep -q "\[merge-pr\] Removing worktree"; then
+  printf '  PASS  bin/merge-pr.sh logged cleanup action (even with exit-code-1 merge stub)\n'
+  PASS=$(( PASS + 1 ))
+else
+  printf '  FAIL  bin/merge-pr.sh did not log cleanup action (stderr: %s)\n' "$MERGE_PR_STDERR"
+  FAIL=$(( FAIL + 1 ))
+fi
 
 # ===========================================================================
 print_summary

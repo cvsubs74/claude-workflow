@@ -129,11 +129,21 @@ DISCUSS — <one-line summary of the open question>
 
 **Designer gate (convention-only):** If the PR touches frontend paths (UI components, styles, layout), confirm Designer has posted a top-level "Design Approved" comment before merging. No hook enforces this — you are on the honor system. If Designer has not yet weighed in, hold the merge and ping Designer. If Designer posted "Design Blocked," switch to CHANGES REQUESTED.
 
-Squash-merge:
+Squash-merge using the wrapper script (REQUIRED — do not call `gh pr merge` directly):
 
 ```bash
-gh pr merge <N> --squash --delete-branch
+bin/merge-pr.sh <N> --squash
 ```
+
+`bin/merge-pr.sh` calls `gh pr merge <N> --squash --delete-branch` then
+immediately cleans up the matching `.worktrees/` entry and local branch.
+It works in all contexts (main session and agent sub-sessions).
+
+**Why not `gh pr merge` directly?** `PostToolUse` hooks registered in
+`settings.json` do not fire for tool calls inside agent sub-sessions
+(anthropics/claude-code #34692). Hook 7 (`auto-clean-worktree.sh`) would be
+silently skipped — leaving orphaned worktrees after every agent-driven merge.
+`bin/merge-pr.sh` runs the cleanup explicitly, bypassing that limitation.
 
 Post the FINAL CLOSER merge comment on the issue the PR closes:
 
