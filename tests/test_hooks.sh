@@ -292,6 +292,7 @@ run_case "$HOOK" "gh pr merge -d 5 --squash"                "gh pr merge -d 5 --
 # Allow paths — not a merge command
 run_case "$HOOK" "gh pr view 5 (not merge)"                "gh pr view 5"                                             "allow"
 run_case "$HOOK" "gh pr create (not merge)"                "gh pr create --title x --body y"                          "allow"
+run_case "$HOOK" "gh pr create with 'merge' in title"      'gh pr create --title "block merge without flag"'          "allow"
 run_case "$HOOK" "gh issue close 5"                        "gh issue close 5"                                         "allow"
 run_case "$HOOK" "git push origin feat/foo"                "git push origin feat/foo"                                 "allow"
 run_case "$HOOK" "ls -la (non-gh)"                         "ls -la"                                                   "allow"

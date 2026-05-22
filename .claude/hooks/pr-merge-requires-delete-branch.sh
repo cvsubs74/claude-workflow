@@ -56,19 +56,19 @@ if [[ -z "$COMMAND" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Detection: does this command contain `gh pr merge`?
+# Detection: does this command contain the adjacent token sequence `gh pr merge`?
 #
-# Same strategy as Hook 3: scan every semicolon/&&/||-separated segment of
-# the compound command for a token sequence matching `gh pr merge`.
+# The regex requires the three tokens to appear with only whitespace between
+# them. This avoids false positives like `gh pr create --title "merge xyz"`
+# where the word "merge" appears as part of an unrelated argument.
 # ---------------------------------------------------------------------------
-if ! printf '%s' "$COMMAND" | command grep -qE '\bgh\b.*\bpr\b.*\bmerge\b'; then
-  # Not a gh pr merge call — allow through
+if ! printf '%s' "$COMMAND" | command grep -qE '\bgh[[:space:]]+pr[[:space:]]+merge\b'; then
+  # Not a gh-pr-merge call — allow through
   exit 0
 fi
 
-# Isolate the gh pr merge segment from a compound command. grep -oE extracts
-# the matching portion; head -1 takes the first match.
-MERGE_SEGMENT="$(printf '%s' "$COMMAND" | command grep -oE '\bgh\b[^;&|]*\bpr\b[^;&|]*\bmerge\b.*' | head -1)"
+# Isolate the segment starting at the adjacent `gh pr merge` for token walking.
+MERGE_SEGMENT="$(printf '%s' "$COMMAND" | command grep -oE '\bgh[[:space:]]+pr[[:space:]]+merge\b.*' | head -1)"
 
 if [[ -z "$MERGE_SEGMENT" ]]; then
   # Couldn't isolate segment — fail open
