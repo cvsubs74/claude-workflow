@@ -23,13 +23,12 @@
 #   Block:   echo '{"tool_name":"Bash","tool_input":{"command":"gh pr merge --squash 5"}}' | bash pr-merge-requires-in-review.sh
 #   Allow:   echo '{"tool_name":"Bash","tool_input":{"command":"gh pr view 5"}}' | bash pr-merge-requires-in-review.sh
 #
-# Self-test: run with --self-test to verify all cases pass:
-#   bash pr-merge-requires-in-review.sh --self-test
+# Tests live in tests/test_hooks.sh (run via bash tests/run.sh).
 #
 # Operator override: set CLAUDE_HOOK_BYPASS=1 to skip all checks.
 #
-# gh pr view mock: in --self-test the CLAUDE_HOOK_GH_LABELS_CMD env var can
-# override the label-fetching command. Self-test sets it to a function stub
+# gh pr view stub: CLAUDE_HOOK_GH_LABELS_CMD overrides the label-fetching
+# command. tests/fixtures/gh-labels-stub.sh provides a script-file stub
 # that returns a controlled JSON array — no real GitHub API calls needed.
 #
 # See .claude/hooks/README.md for full escape-hatch documentation and
@@ -37,106 +36,6 @@
 
 set -euo pipefail
 
-# ---------------------------------------------------------------------------
-# Self-test mode
-# ---------------------------------------------------------------------------
-if [[ "${1:-}" == "--self-test" ]]; then
-  SCRIPT="$0"
-  PASS=0
-  FAIL=0
-
-  # -------------------------------------------------------------------------
-  # Mock strategy: The --self-test runs without real GitHub API access.
-  # We use a wrapper script trick via CLAUDE_HOOK_GH_LABELS_CMD:
-  #   - When CLAUDE_HOOK_GH_LABELS_CMD is set, the hook uses it instead of
-  #     calling `gh pr view <N> --json labels ...`.
-  #   - In self-test, we set this env var to a small bash snippet that
-  #     returns a fixed label JSON array based on the PR number:
-  #       PR 42 → has in-review   (ALLOW)
-  #       PR 99 → no in-review    (BLOCK)
-  #       PR *  → no in-review    (BLOCK, default)
-  # This avoids real network calls and makes the test fully hermetic.
-  # -------------------------------------------------------------------------
-  mock_label_cmd() {
-    local pr_num="$1"
-    if [[ "$pr_num" == "42" ]]; then
-      printf '["in-review","enhancement"]'
-    elif [[ "$pr_num" == "7" ]]; then
-      printf '["enhancement","in-review","priority:high"]'
-    else
-      printf '["enhancement","backlog"]'
-    fi
-  }
-  export -f mock_label_cmd
-  export CLAUDE_HOOK_GH_LABELS_CMD="mock_label_cmd"
-
-  run_case() {
-    local label="$1"
-    local cmd="$2"
-    local expect="$3"   # "block" or "allow"
-
-    local payload
-    # Use jq to build the JSON so that special characters (double quotes, etc.)
-    # in $cmd are properly escaped — printf %s would produce invalid JSON for
-    # commands that contain literal double-quote characters.
-    payload="$(jq -cn --arg cmd "$cmd" '{"tool_name":"Bash","tool_input":{"command":$cmd}}')"
-
-    local exit_code=0
-    printf '%s' "$payload" | bash "$SCRIPT" >/dev/null 2>&1 || exit_code=$?
-
-    local actual
-    if [[ "$exit_code" -eq 2 ]]; then
-      actual="block"
-    else
-      actual="allow"
-    fi
-
-    if [[ "$actual" == "$expect" ]]; then
-      printf '  PASS  %-60s  (%s)\n' "$label" "$expect"
-      PASS=$(( PASS + 1 ))
-    else
-      printf '  FAIL  %-60s  expected=%s actual=%s\n' "$label" "$expect" "$actual"
-      FAIL=$(( FAIL + 1 ))
-    fi
-  }
-
-  echo "=== pr-merge-requires-in-review.sh --self-test ==="
-  echo ""
-  echo "--- SHOULD BLOCK (exit 2) ---"
-
-  # PR without in-review — various command forms
-  run_case "gh pr merge 5  (no in-review)"                 "gh pr merge 5"                           "block"
-  run_case "gh pr merge --squash 5  (flag before num)"     "gh pr merge --squash 5"                  "block"
-  run_case "gh pr merge 5 --squash  (flag after num)"      "gh pr merge 5 --squash"                  "block"
-  run_case "gh pr merge 5 --squash --delete-branch"        "gh pr merge 5 --squash --delete-branch"  "block"
-  run_case "gh pr merge '5'  (single-quoted number)"       "gh pr merge '5'"                         "block"
-  run_case 'gh pr merge "5"  (double-quoted number)'       'gh pr merge "5"'                         "block"
-  run_case "compound: cd /tmp && gh pr merge 5"            "cd /tmp && gh pr merge 5"                "block"
-  run_case "URL form: gh pr merge .../pull/5"              "gh pr merge https://github.com/owner/repo/pull/5"  "block"
-
-  echo ""
-  echo "--- SHOULD ALLOW (exit 0) ---"
-
-  # PR with in-review — various command forms (PR #42 and #7 are mocked with in-review)
-  run_case "gh pr merge 42  (has in-review)"               "gh pr merge 42"                          "allow"
-  run_case "gh pr merge --squash 42  (in-review, flag)"    "gh pr merge --squash 42"                 "allow"
-  run_case "gh pr merge 7 --squash  (in-review, flag)"     "gh pr merge 7 --squash"                  "allow"
-
-  # Non-merge gh subcommands — must pass through untouched
-  run_case "gh pr view 5  (not a merge command)"           "gh pr view 5"                            "allow"
-  run_case "gh pr create  (not a merge command)"           "gh pr create --title x --body y"         "allow"
-  run_case "gh issue close 5  (non-pr command)"            "gh issue close 5"                        "allow"
-  run_case "gh issue edit 5 --add-label in-review"         "gh issue edit 5 --add-label in-review"   "allow"
-  run_case "ls -la  (non-gh command)"                      "ls -la"                                  "allow"
-  run_case "git push origin feat/11-branch"                "git push origin feat/11-branch"          "allow"
-
-  # Bypass escape hatch
-  CLAUDE_HOOK_BYPASS=1 run_case "CLAUDE_HOOK_BYPASS=1 with blocked PR" "gh pr merge 5"              "allow"
-
-  echo ""
-  echo "=== Results: ${PASS} passed, ${FAIL} failed ==="
-  [[ "$FAIL" -eq 0 ]] && exit 0 || exit 1
-fi
 
 # ---------------------------------------------------------------------------
 # Normal hook mode
