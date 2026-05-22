@@ -15,6 +15,7 @@ See the [Claude Code hooks reference](https://docs.anthropic.com/en/docs/claude-
 | 3 | `pr-merge-requires-in-review.sh` | `PreToolUse/Bash` | `gh pr merge` without `in-review` label | **Done — #11** |
 | 4 | `session-start-doc-check.sh` | `SessionStart` | Session begin | **Done — #12** |
 | 5 | `pr-body-closes-check.sh` | `PreToolUse/Bash` | `gh pr create` with missing `Closes #N` | **Done — #13** |
+| 6 | `pr-merge-requires-delete-branch.sh` | `PreToolUse/Bash` | `gh pr merge` without `--delete-branch` / `-d` | **Done** |
 
 ---
 
@@ -229,6 +230,42 @@ This is intentional: operators are trusted principals and can apply any label pe
 
 **Exit codes:**
 - `0` — always (warn-only hook; never blocks)
+
+---
+
+## Hook 6: `pr-merge-requires-delete-branch.sh` — Done
+
+**Purpose:** Block `gh pr merge <N>` calls that don't include `--delete-branch` (or its short form `-d`). Enforces the SDLC Step 5 branch-deletion convention at command time so the agent learns the rule.
+
+**Trigger:** `PreToolUse` on tool `Bash`
+
+**What it blocks:**
+- `gh pr merge 5` (no flags)
+- `gh pr merge 5 --squash` (other flags, no `--delete-branch`)
+- `gh pr merge --squash 5 --admin`
+- `gh pr merge '5'` / `gh pr merge "5"` (quoted PR number)
+- `cd /tmp && gh pr merge 5` (compound)
+- `gh pr merge https://github.com/owner/repo/pull/5` (URL form)
+
+**What it allows:**
+- `gh pr merge <N> --squash --delete-branch` (required form)
+- `gh pr merge <N> --delete-branch --squash` (flag order doesn't matter)
+- `gh pr merge <N> -d` (short form)
+- `gh pr view`, `gh pr create`, `gh issue close`, and all other non-merge `gh` subcommands
+- Any non-`gh` command
+
+**Why both this hook AND the GitHub repo setting?**
+
+- **Server-side:** `gh api -X PATCH repos/{owner}/{repo} -f delete_branch_on_merge=true` deletes the remote branch automatically on merge. Catches everything but is invisible to the agent — silent fix, no learning.
+- **This hook:** catches the missing flag at command time, prints an actionable message naming the convention, and ensures `gh pr merge` also cleans up the local tracking ref (which the server setting can't do).
+
+Both are wired up. The hook is the teaching surface; the setting is the safety net.
+
+**Exit codes:**
+- `0` — allow (silent)
+- `2` — block (Claude Code surfaces the stderr message to the user)
+
+**Rule this enforces:** SDLC.md Step 5 — "branches are deleted on merge to keep `origin` clean."
 
 ---
 

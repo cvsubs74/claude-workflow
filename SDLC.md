@@ -133,7 +133,15 @@ CHANGES REQUESTED — <what to change> → Dev iterates
 DISCUSS — <open question> → conversation
 ```
 
-5. On LGTM, squash-merges. The merge comment is the FINAL CLOSER: it summarizes what shipped and pings the next owner (DevOps for deploy, QA for verification).
+5. On LGTM, squash-merges **with `--delete-branch`** to keep `origin` clean:
+
+   ```bash
+   gh pr merge <N> --squash --delete-branch
+   ```
+
+   `--delete-branch` is mandatory — Hook 6 (`pr-merge-requires-delete-branch.sh`) blocks `gh pr merge` calls without it. The repo setting `delete_branch_on_merge=true` is a server-side safety net; the hook is the command-time enforcement that also cleans the local tracking ref.
+
+6. The merge comment is the FINAL CLOSER: it summarizes what shipped and pings the next owner (DevOps for deploy, QA for verification).
 
 ---
 
