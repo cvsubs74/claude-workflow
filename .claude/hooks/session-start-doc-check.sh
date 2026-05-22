@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# session-start-doc-check.sh — Hook 4 of 6
+# session-start-doc-check.sh — Hook 4 of 7
 #
 # SessionStart hook: sanity-check that required cold-start docs exist and
 # that the local branch is not behind origin.

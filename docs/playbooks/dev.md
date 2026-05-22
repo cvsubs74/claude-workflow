@@ -129,3 +129,28 @@ The stub script (`fake-gh.sh`) runs at top level (not inside functions).
 Using `local varname` at top level produces "local: can only be used in a
 function" and the variable is never set. Use plain `varname=""` for top-level
 variable declarations in the stub.
+
+## PostToolUse hooks: env var inheritance
+
+When writing a `PostToolUse` hook, inline env var assignment (`VAR=val cmd`) only
+applies to the FIRST command in a pipeline. If the hook receives its payload via
+stdin pipe, use `env VAR=val bash script < payload_file` instead, or `export` the
+vars before the pipeline.
+
+Wrong pattern in tests (env doesn't reach bash script):
+```bash
+CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$stub" printf '%s' "$payload" | bash hook.sh
+```
+
+Correct pattern:
+```bash
+printf '%s' "$payload" > /tmp/payload.json
+env CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$stub" bash hook.sh < /tmp/payload.json
+```
+
+## macOS symlink paths in git worktree list
+
+`git worktree list --porcelain` returns resolved paths (e.g. `/private/var/...`)
+while `mktemp` and `realpath` may return the unresolved path (`/var/...`). Always
+canonicalize WORKTREES_DIR with `cd "$dir" && pwd -P` before comparing against
+paths returned by git commands on macOS.

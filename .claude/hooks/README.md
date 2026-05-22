@@ -16,6 +16,7 @@ See the [Claude Code hooks reference](https://docs.anthropic.com/en/docs/claude-
 | 4 | `session-start-doc-check.sh` | `SessionStart` | Session begin | **Done — #12** |
 | 5 | `pr-body-closes-check.sh` | `PreToolUse/Bash` | `gh pr create` with missing `Closes #N` | **Done — #13** |
 | 6 | `pr-merge-requires-delete-branch.sh` | `PreToolUse/Bash` | `gh pr merge` without `--delete-branch` / `-d` | **Done** |
+| 7 | `auto-clean-worktree.sh` | `PostToolUse/Bash` | after `gh pr merge` succeeds: remove matching `.worktrees/` entry and delete local branch | **Done — #72** |
 
 ---
 
@@ -425,3 +426,70 @@ Claude Code passes a JSON object to the hook's stdin. For `PreToolUse`, the hook
 5. Append a section to `tests/test_hooks.sh` covering the new hook's cases (use `run_case` for exit-code hooks, `run_case_warn` for warn-only hooks).
 6. Run `bash tests/run.sh` and ensure all cases pass.
 7. The `test_consistency.sh` "hook inventory" check will fail until steps 3 and 4 are done — that's the safety net catching incomplete registration.
+
+---
+
+## Hook 7: `auto-clean-worktree.sh` — Done (#72)
+
+**Purpose:** After a successful `gh pr merge`, automatically remove the matching `.worktrees/` entry and delete the local branch. Closes the post-merge cleanup gap identified in `docs/playbooks/team-lead.md` — Dev agents consistently skipped manual cleanup after merge.
+
+**Trigger:** `PostToolUse` on tool `Bash` (fires after the Bash tool returns, not before)
+
+**Why PostToolUse?**
+
+Cleanup must happen *after* the merge succeeds, not before. `PreToolUse` cannot know whether the merge will succeed. `PostToolUse` fires after the Bash tool has already returned, so the hook can inspect `tool_response` to confirm success before acting.
+
+**Ordering constraint (CR Slice 5 review note):**
+
+`git branch -D <branch>` fails with "Cannot delete branch '...' checked out at '...'" if a worktree still holds that branch. This hook **always removes the worktree first**, then deletes the local branch.
+
+**What it does — happy path:**
+1. Detects a `gh pr merge` command in `tool_input.command`
+2. Checks `tool_response.error` — if non-empty, the merge failed; skip cleanup
+3. Extracts the PR number from the command (same token-walking logic as Hook 3)
+4. Calls `gh pr view <N> --json headRefName` to get the merged branch name
+5. Scans `git worktree list --porcelain` for entries under `.worktrees/` on that branch
+6. For each match: checks for uncommitted changes (safety guard), then runs `git worktree remove <path>` followed by `git branch -D <branch>`
+7. Logs each action to stderr so the user sees confirmation
+
+**What it does — no-match path:**
+- No matching worktree found (Dev already cleaned up manually) → exits silently (0). This is valid state.
+
+**Safety guard:**
+- If `git status --porcelain` shows uncommitted changes in a worktree, the hook logs a WARNING and skips that worktree. The Dev session must clean up manually.
+
+**Scope guard:**
+- Only removes worktrees under `<repo-root>/.worktrees/`. Worktrees in other locations are left untouched.
+
+**This hook ALWAYS exits 0.** It is a cleanup helper, not an enforcement gate. Cleanup failure is logged as a WARNING, never as a blocking error.
+
+**Exit codes:**
+- `0` — always
+
+**Environment overrides (for test isolation):**
+- `CLAUDE_HOOK_BYPASS=1` — skip all checks (ops emergency)
+- `CLAUDE_HOOK_TEST_REPO_ROOT=<dir>` — override repo root instead of using `git rev-parse --show-toplevel`
+- `CLAUDE_HOOK_TEST_GH_BRANCH_CMD=<cmd>` — override the `gh pr view` call; the stub receives the PR number as `$1` and must print the branch name to stdout
+
+**PostToolUse stdin payload:**
+```json
+{
+  "tool_name": "Bash",
+  "tool_input": { "command": "<bash command string>" },
+  "tool_response": { "output": "<stdout>", "error": "<stderr>" }
+}
+```
+
+**Registration in `.claude/settings.json`:**
+```json
+"PostToolUse": [
+  {
+    "matcher": "Bash",
+    "hooks": [
+      { "type": "command", "command": ".claude/hooks/auto-clean-worktree.sh" }
+    ]
+  }
+]
+```
+
+**Rule this enforces:** SDLC.md Step 7 — "After the PR merges: `git worktree remove .worktrees/<task-id>` and `git branch -D <branch>`."

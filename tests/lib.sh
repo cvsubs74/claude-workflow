@@ -141,6 +141,61 @@ assert_set_eq() {
 }
 
 # ---------------------------------------------------------------------------
+# emit_post_payload <cmd> [tool_output] [tool_error]
+# Builds the PostToolUse JSON payload for Hook 7's stdin.
+# tool_output and tool_error default to empty string.
+# ---------------------------------------------------------------------------
+emit_post_payload() {
+  local cmd="$1"
+  local out="${2:-}"
+  local err="${3:-}"
+  jq -cn --arg cmd "$cmd" --arg out "$out" --arg err "$err" \
+    '{"tool_name":"Bash","tool_input":{"command":$cmd},"tool_response":{"output":$out,"error":$err}}'
+}
+
+# ---------------------------------------------------------------------------
+# run_case_post <hook_script> <label> <cmd> <expect> [tool_output] [tool_error]
+# For PostToolUse hooks that always exit 0.
+# expect: "cleanup" (stderr contains "[auto-clean-worktree] Removing") or
+#         "warn"    (stderr contains "[auto-clean-worktree] WARNING") or
+#         "silent"  (none of the above — hook ran but did nothing).
+# ---------------------------------------------------------------------------
+run_case_post() {
+  local hook="$1"
+  local label="$2"
+  local cmd="$3"
+  local expect="$4"
+  local tool_out="${5:-}"
+  local tool_err="${6:-}"
+
+  local payload
+  payload="$(emit_post_payload "$cmd" "$tool_out" "$tool_err")"
+
+  local stderr_out
+  stderr_out="$(printf '%s' "$payload" | bash "$hook" 2>&1 >/dev/null || true)"
+
+  local actual
+  if printf '%s' "$stderr_out" | command grep -q "\[auto-clean-worktree\] Removing"; then
+    actual="cleanup"
+  elif printf '%s' "$stderr_out" | command grep -q "\[auto-clean-worktree\] WARNING"; then
+    actual="warn"
+  else
+    actual="silent"
+  fi
+
+  if [[ "$actual" == "$expect" ]]; then
+    printf '  PASS  %-62s  (%s)\n' "$label" "$expect"
+    PASS=$(( PASS + 1 ))
+  else
+    printf '  FAIL  %-62s  expected=%s actual=%s\n' "$label" "$expect" "$actual"
+    if [[ -n "$stderr_out" ]]; then
+      printf '        stderr: %s\n' "$stderr_out"
+    fi
+    FAIL=$(( FAIL + 1 ))
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # print_summary
 # Prints the pass/fail tally; sets the exit code on the caller.
 # ---------------------------------------------------------------------------

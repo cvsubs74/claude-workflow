@@ -346,4 +346,188 @@ run_case "$HOOK" "bare merge at end-of-string (no flags -> block)"  "gh pr merge
 CLAUDE_HOOK_BYPASS=1 run_case "$HOOK" "bypass with blocked form" "gh pr merge 5 --squash" "allow"
 
 # ===========================================================================
+# Hook 7 — auto-clean-worktree.sh
+#
+# PostToolUse hook — always exits 0. Tests check WHAT the hook does
+# (logs cleanup vs. logs warning vs. stays silent) via stderr inspection.
+#
+# Harness design:
+#   - CLAUDE_HOOK_TEST_GH_BRANCH_CMD points to a small inline script that
+#     echos a controlled branch name so we never hit the real GitHub API.
+#   - CLAUDE_HOOK_TEST_REPO_ROOT points to a temp directory containing a
+#     real git repo with real worktrees so git worktree list --porcelain
+#     returns real data.
+#   - Tests use run_case_post (defined in lib.sh):
+#       "cleanup" — stderr contains "[auto-clean-worktree] Removing"
+#       "warn"    — stderr contains "[auto-clean-worktree] WARNING"
+#       "silent"  — none of the above
+# ===========================================================================
+echo ""
+echo "--- HOOK 7: auto-clean-worktree.sh ---"
+HOOK="$HOOKS_DIR/auto-clean-worktree.sh"
+
+# ---------------------------------------------------------------------------
+# Set up a temp git repo with a worktree for integration-style tests
+# ---------------------------------------------------------------------------
+HOOK7_TMPDIR="$(mktemp -d)"
+HOOK7_REPO="${HOOK7_TMPDIR}/repo"
+HOOK7_WT_DIR="${HOOK7_REPO}/.worktrees"
+HOOK7_BRANCH="feat/99-test-hook7"
+
+# Build a minimal git repo with one commit and one linked worktree
+git init -q "$HOOK7_REPO"
+git -C "$HOOK7_REPO" config user.email "test@test.com"
+git -C "$HOOK7_REPO" config user.name  "Test"
+echo "init" > "${HOOK7_REPO}/file.txt"
+git -C "$HOOK7_REPO" add .
+git -C "$HOOK7_REPO" commit -q -m "init"
+git -C "$HOOK7_REPO" branch "$HOOK7_BRANCH"
+mkdir -p "$HOOK7_WT_DIR"
+git -C "$HOOK7_REPO" worktree add "${HOOK7_WT_DIR}/task-99" "$HOOK7_BRANCH" -q
+
+# Branch-lookup stub: returns HOOK7_BRANCH for any PR number
+BRANCH_STUB_SCRIPT="${HOOK7_TMPDIR}/branch_stub.sh"
+printf '#!/usr/bin/env bash\necho "%s"\n' "$HOOK7_BRANCH" > "$BRANCH_STUB_SCRIPT"
+chmod +x "$BRANCH_STUB_SCRIPT"
+
+# Clean up temp dir on exit (appended to existing EXIT trap from Hook 5 section)
+trap 'rm -rf "$TMPDIR_BASE" "$HOOK7_TMPDIR"; rm -f "$TMP_WITH_CLOSES" "$TMP_WITHOUT_CLOSES"' EXIT
+
+# ---------------------------------------------------------------------------
+# Test 1 — Not a gh pr merge command: should be silent
+# ---------------------------------------------------------------------------
+run_case_post "$HOOK" "git status (non-merge command)" \
+  "git status" "silent"
+
+# ---------------------------------------------------------------------------
+# Test 2 — gh pr merge with error in tool_response: skip cleanup
+# ---------------------------------------------------------------------------
+run_case_post "$HOOK" "gh pr merge 99 — tool_response.error set → skip" \
+  "gh pr merge 99 --squash --delete-branch" \
+  "silent" "" "GraphQL: Pull Request is not mergeable."
+
+# ---------------------------------------------------------------------------
+# Test 3 — gh pr merge with 'not merged' in output: skip cleanup
+# ---------------------------------------------------------------------------
+run_case_post "$HOOK" "gh pr merge 99 — output contains 'not merged' → skip" \
+  "gh pr merge 99 --squash --delete-branch" \
+  "silent" "error: not merged" ""
+
+# ---------------------------------------------------------------------------
+# Test 4 — Successful merge, matching clean worktree: cleanup fires
+# ---------------------------------------------------------------------------
+CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO" \
+CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$BRANCH_STUB_SCRIPT" \
+run_case_post "$HOOK" "gh pr merge 99 — clean worktree match → cleanup" \
+  "gh pr merge 99 --squash --delete-branch" \
+  "cleanup"
+
+# The worktree AND branch were removed by Test 4 — recreate both for remaining tests.
+# Function to recreate the branch and worktree after a cleanup test consumes them.
+hook7_reset_worktree() {
+  git -C "$HOOK7_REPO" branch -D "$HOOK7_BRANCH" 2>/dev/null || true
+  git -C "$HOOK7_REPO" branch "$HOOK7_BRANCH" 2>/dev/null || true
+  rm -rf "${HOOK7_WT_DIR}/task-99"
+  git -C "$HOOK7_REPO" worktree prune -q 2>/dev/null || true
+  git -C "$HOOK7_REPO" worktree add "${HOOK7_WT_DIR}/task-99" "$HOOK7_BRANCH" -q
+}
+
+hook7_reset_worktree
+
+# ---------------------------------------------------------------------------
+# Test 5 — No matching worktree (different branch): silent
+# ---------------------------------------------------------------------------
+MISMATCHED_STUB="${HOOK7_TMPDIR}/mismatch_stub.sh"
+printf '#!/usr/bin/env bash\necho "feat/99-other-branch"\n' > "$MISMATCHED_STUB"
+chmod +x "$MISMATCHED_STUB"
+
+CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO" \
+CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$MISMATCHED_STUB" \
+run_case_post "$HOOK" "gh pr merge 99 — no matching worktree → silent" \
+  "gh pr merge 99 --squash --delete-branch" \
+  "silent"
+
+# ---------------------------------------------------------------------------
+# Test 6 — Dirty worktree (uncommitted changes): warn, skip removal
+# ---------------------------------------------------------------------------
+printf 'dirty content\n' > "${HOOK7_WT_DIR}/task-99/dirty.txt"
+
+CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO" \
+CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$BRANCH_STUB_SCRIPT" \
+run_case_post "$HOOK" "gh pr merge 99 — dirty worktree → warn, skip" \
+  "gh pr merge 99 --squash --delete-branch" \
+  "warn"
+
+# Clean up dirty file and restore clean worktree for subsequent tests
+rm -f "${HOOK7_WT_DIR}/task-99/dirty.txt"
+
+# ---------------------------------------------------------------------------
+# Test 7 — Bypass: CLAUDE_HOOK_BYPASS=1 → always silent
+# ---------------------------------------------------------------------------
+CLAUDE_HOOK_BYPASS=1 \
+CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO" \
+CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$BRANCH_STUB_SCRIPT" \
+run_case_post "$HOOK" "CLAUDE_HOOK_BYPASS=1 → silent (bypass)" \
+  "gh pr merge 99 --squash --delete-branch" \
+  "silent"
+
+# ---------------------------------------------------------------------------
+# Test 8 — PR number extraction: URL form
+# ---------------------------------------------------------------------------
+CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO" \
+CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$BRANCH_STUB_SCRIPT" \
+run_case_post "$HOOK" "gh pr merge URL form → cleanup" \
+  "gh pr merge https://github.com/owner/repo/pull/99 --squash --delete-branch" \
+  "cleanup"
+
+hook7_reset_worktree
+
+# ---------------------------------------------------------------------------
+# Test 9 — gh pr merge quoted number: '99'
+# ---------------------------------------------------------------------------
+CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO" \
+CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$BRANCH_STUB_SCRIPT" \
+run_case_post "$HOOK" "gh pr merge '99' (single-quoted number) → cleanup" \
+  "gh pr merge '99' --squash --delete-branch" \
+  "cleanup"
+
+hook7_reset_worktree
+
+# ---------------------------------------------------------------------------
+# Test 10 — Compound command: cd /tmp && gh pr merge 99 ...
+# ---------------------------------------------------------------------------
+CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO" \
+CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$BRANCH_STUB_SCRIPT" \
+run_case_post "$HOOK" "compound: cd /tmp && gh pr merge 99 → cleanup" \
+  "cd /tmp && gh pr merge 99 --squash --delete-branch" \
+  "cleanup"
+
+# Prune stale worktree metadata for test 11 (uses different repo, not needed)
+git -C "$HOOK7_REPO" worktree prune -q 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
+# Test 11 — No .worktrees/ directory: silent (no directory, nothing to do)
+# ---------------------------------------------------------------------------
+HOOK7_REPO_NODIR="${HOOK7_TMPDIR}/repo_nodir"
+git init -q "$HOOK7_REPO_NODIR"
+git -C "$HOOK7_REPO_NODIR" config user.email "test@test.com"
+git -C "$HOOK7_REPO_NODIR" config user.name  "Test"
+echo "init" > "${HOOK7_REPO_NODIR}/file.txt"
+git -C "$HOOK7_REPO_NODIR" add .
+git -C "$HOOK7_REPO_NODIR" commit -q -m "init"
+
+CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO_NODIR" \
+CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$BRANCH_STUB_SCRIPT" \
+run_case_post "$HOOK" "no .worktrees/ directory → silent" \
+  "gh pr merge 99 --squash --delete-branch" \
+  "silent"
+
+# ---------------------------------------------------------------------------
+# Test 12 — False-positive guard: 'gh pr merge' inside a grep argument
+# ---------------------------------------------------------------------------
+run_case_post "$HOOK" "grep 'gh pr merge' in quoted arg → silent" \
+  'grep "gh pr merge" SDLC.md' \
+  "silent"
+
+# ===========================================================================
 print_summary
