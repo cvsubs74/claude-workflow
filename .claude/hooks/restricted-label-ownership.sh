@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# restricted-label-ownership.sh — Hook 2 of 5
+# restricted-label-ownership.sh — Hook 2 of 6
 #
 # PreToolUse / Bash hook: enforce label ownership rules per label-discipline.
 #
