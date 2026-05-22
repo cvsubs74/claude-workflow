@@ -129,7 +129,7 @@ All tests are plain Bash. Run everything with `bash tests/run.sh` from the repo 
 
 | Date | PR | What changed | Why |
 |------|----|----|-----|
-| 2026-05-22 | #TBD | Hook 7 (`auto-clean-worktree.sh`): PostToolUse hook auto-removes local worktree + branch after `gh pr merge` succeeds; all hook headers bumped "of 6" → "of 7"; `test_hooks.sh` +12 cases; `test_e2e_hook7_worktree_cleanup.sh` +10 E2E assertions | Closes recurring post-merge cleanup gap (resolves #72) |
+| 2026-05-22 | #78 | Hook 7 (`auto-clean-worktree.sh`): PostToolUse hook auto-removes local worktree + branch after `gh pr merge` succeeds; all hook headers bumped "of 6" → "of 7"; `test_hooks.sh` +12 cases; `test_e2e_hook7_worktree_cleanup.sh` +10 E2E assertions | Closes recurring post-merge cleanup gap (resolves #72) |
 | 2026-05-22 | #43 | Initial `docs/ARCHITECTURE.md` created from template | Eliminates session-start `[HOOK INFO]` noise; gives agents a live update surface as the system evolves (resolves #38) |
 | 2026-05-22 | #42 | `SDLC.md` Step 5 + `code-reviewer-agent.md` document Designer-gate as convention-only | Honest docs about which gates are mechanical (hooks) vs convention (CR honor system) (resolves #37) |
 | 2026-05-22 | #41 | Hook script headers updated "Hook N of 5" → "Hook N of 6"; Check 2b added to `tests/test_consistency.sh` | Doc rot from Hook 6 addition; new check prevents this class of drift from recurring silently (resolves #35) |
