@@ -35,7 +35,7 @@ This repository is the **claude-workflow** project: a Claude Code agent team tha
 
 ## Hook layout
 
-Six enforcement hooks run inside Claude Code's hook lifecycle. All scripts live under `.claude/hooks/` and are registered in `.claude/settings.json`. Full detail (behavior, test cases, known limitations) is in `.claude/hooks/README.md`.
+Seven enforcement hooks run inside Claude Code's hook lifecycle. All scripts live under `.claude/hooks/` and are registered in `.claude/settings.json`. Full detail (behavior, test cases, known limitations) is in `.claude/hooks/README.md`.
 
 | # | Script | Event type | What it enforces |
 |---|--------|------------|------------------|
@@ -45,6 +45,7 @@ Six enforcement hooks run inside Claude Code's hook lifecycle. All scripts live 
 | 4 | `session-start-doc-check.sh` | `SessionStart` | Warns (never blocks) when required cold-start docs (`CLAUDE.md`, `ETHOS.md`, `SDLC.md`) are missing, and emits an INFO note when `docs/ARCHITECTURE.md` is absent. |
 | 5 | `pr-body-closes-check.sh` | `PreToolUse/Bash` | Warns (never blocks) when `gh pr create` is called without a GitHub auto-close keyword (`Closes #N`, `Fixes #N`, `Resolves #N`) in the PR body. |
 | 6 | `pr-merge-requires-delete-branch.sh` | `PreToolUse/Bash` | Blocks `gh pr merge` calls that omit `--delete-branch` (or `-d`). Enforces branch-deletion at merge time (SDLC Step 5). |
+| 7 | `auto-clean-worktree.sh` | `PostToolUse/Bash` | After a successful `gh pr merge`, removes the matching `.worktrees/` entry and deletes the local branch. Closes the post-merge cleanup gap (SDLC Step 7). |
 
 **Registration pattern in `.claude/settings.json`:**
 
@@ -112,6 +113,7 @@ All tests are plain Bash. Run everything with `bash tests/run.sh` from the repo 
 - **PRs require `in-review` label before merge.** Hook 3 enforces this; Code Reviewer is the only role that merges.
 - **Label ownership is role-locked.** Hook 2 enforces restricted labels; see `label-discipline` SKILL.md for the canonical table.
 - **Branches deleted on merge.** Hook 6 enforces `--delete-branch` at command time; the GitHub repo setting is the server-side safety net.
+- **Local worktrees auto-cleaned after merge.** Hook 7 fires after a successful `gh pr merge`, removes matching `.worktrees/` entries, and deletes the local branch (SDLC Step 7 invariant).
 - **ARCHITECTURE.md must stay current.** Append a Change Log row on any change that touches module shape, data flow, schema, or constraints.
 
 ## External dependencies
@@ -127,6 +129,7 @@ All tests are plain Bash. Run everything with `bash tests/run.sh` from the repo 
 
 | Date | PR | What changed | Why |
 |------|----|----|-----|
+| 2026-05-22 | #TBD | Hook 7 (`auto-clean-worktree.sh`): PostToolUse hook auto-removes local worktree + branch after `gh pr merge` succeeds; all hook headers bumped "of 6" → "of 7"; `test_hooks.sh` +12 cases; `test_e2e_hook7_worktree_cleanup.sh` +10 E2E assertions | Closes recurring post-merge cleanup gap (resolves #72) |
 | 2026-05-22 | #43 | Initial `docs/ARCHITECTURE.md` created from template | Eliminates session-start `[HOOK INFO]` noise; gives agents a live update surface as the system evolves (resolves #38) |
 | 2026-05-22 | #42 | `SDLC.md` Step 5 + `code-reviewer-agent.md` document Designer-gate as convention-only | Honest docs about which gates are mechanical (hooks) vs convention (CR honor system) (resolves #37) |
 | 2026-05-22 | #41 | Hook script headers updated "Hook N of 5" → "Hook N of 6"; Check 2b added to `tests/test_consistency.sh` | Doc rot from Hook 6 addition; new check prevents this class of drift from recurring silently (resolves #35) |
