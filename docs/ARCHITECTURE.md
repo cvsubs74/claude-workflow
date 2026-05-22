@@ -127,4 +127,8 @@ All tests are plain Bash. Run everything with `bash tests/run.sh` from the repo 
 
 | Date | PR | What changed | Why |
 |------|----|----|-----|
-| 2026-05-21 | #39 | Initial `docs/ARCHITECTURE.md` created from template | Eliminates session-start `[HOOK INFO]` noise; gives agents a live surface to update as the system evolves (resolves #38) |
+| 2026-05-22 | #43 | Initial `docs/ARCHITECTURE.md` created from template | Eliminates session-start `[HOOK INFO]` noise; gives agents a live update surface as the system evolves (resolves #38) |
+| 2026-05-22 | #42 | `SDLC.md` Step 5 + `code-reviewer-agent.md` document Designer-gate as convention-only | Honest docs about which gates are mechanical (hooks) vs convention (CR honor system) (resolves #37) |
+| 2026-05-22 | #41 | Hook script headers updated "Hook N of 5" → "Hook N of 6"; Check 2b added to `tests/test_consistency.sh` | Doc rot from Hook 6 addition; new check prevents this class of drift from recurring silently (resolves #35) |
+| 2026-05-22 | #40 | `label-discipline` + `system-role-boundaries` SKILLs clarify hook-enforced `in-review` vs convention-only `in-progress` | Honest about which labels are mechanically enforced vs convention-only (resolves #36) |
+| 2026-05-22 | #39 | `team-lead-agent.md` inline label summary corrected: `bug` owned by QA / Triage / Dev / Operator (not Triage-only) | Drift fix; canonical owner table in `label-discipline` was right, inline summary was wrong (resolves #34) |
