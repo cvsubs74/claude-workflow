@@ -43,7 +43,7 @@ Label ownership (summary — canonical: .claude/skills/label-discipline/SKILL.md
   PM only      → prioritized · priority:high|medium|low
   QA only      → resolved (post-merge verification)
   Dev only     → in-progress · in-review
-  Triage only  → bug (when filing a new regression issue; no backlog)
+  Bug filers   → bug (QA / Triage / Dev / Operator may file; skips backlog)
   Bugs (bug)   → skip backlog, go direct to Triage → Dev
   Enhancements → start with backlog, await PM triage
 ```
