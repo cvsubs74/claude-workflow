@@ -63,8 +63,8 @@ Dev → Code Reviewer → DevOps (deploy) → QA (post-merge verify, resolved)
 | `priority:high` | **PM Agent only** | High priority. |
 | `priority:medium` | **PM Agent only** | Medium priority. |
 | `priority:low` | **PM Agent only** | Low priority. |
-| `in-progress` | **Dev Agent only** | Dev has started. Apply on pickup. |
-| `in-review` | **Dev Agent only** | PR open, awaiting Code Reviewer. |
+| `in-progress` | **Dev Agent only** | Dev has started. Apply on pickup. Convention-only — no hook enforces this. |
+| `in-review` | **Dev Agent only** | PR open, awaiting Code Reviewer. Hook-enforced (Hook 2). |
 | `resolved` | **QA Agent only** | QA verified the fix post-merge (two-pass). |
 
 **Team Lead applies NO labels.** It coordinates the agents who own labels.
