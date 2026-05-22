@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # session-start-doc-check.sh — Hook 4 of 6
 #
-# SessionStart hook: sanity-check that required cold-start docs exist.
+# SessionStart hook: sanity-check that required cold-start docs exist and
+# that the local branch is not behind origin.
 #
 # Claude Code invokes this script at session start. It receives a JSON
 # object on stdin with session metadata (shape may vary by Claude Code version;
@@ -21,6 +22,11 @@
 #   - SDLC.md     (required — branch naming, PR workflow, label scheme)
 #   - docs/ARCHITECTURE.md (optional — recommended; absence is informational only)
 #
+# Local-vs-origin sync check:
+#   Runs `git fetch origin --quiet` then checks if local is behind origin/<default-branch>.
+#   Emits [HOOK INFO] advisory if behind; emits [HOOK INFO] if fetch fails (offline).
+#   Never blocks.
+#
 # Exit codes:
 #   0  — always (this hook never blocks)
 #
@@ -30,6 +36,11 @@
 #   --test-root <dir>            use <dir> as the repo root instead of $PWD
 #   CLAUDE_HOOK_TEST_ROOT=<dir>  same, via environment variable
 #   (--test-root flag takes precedence over env var)
+#
+# Sync check override (for tests and CI — prevents real git remote calls):
+#   CLAUDE_HOOK_TEST_SYNC=behind:N   simulate local being N commits behind origin
+#   CLAUDE_HOOK_TEST_SYNC=ok         simulate local being up to date
+#   CLAUDE_HOOK_TEST_SYNC=fetch-failed  simulate git fetch failure (offline)
 #
 # Operator override: set CLAUDE_HOOK_BYPASS=1 to skip all checks.
 # See .claude/hooks/README.md for full escape-hatch documentation.
@@ -96,6 +107,45 @@ for doc in "${OPTIONAL_DOCS[@]}"; do
          "Consider creating it to document system shape (see CLAUDE.md)." >&2
   fi
 done
+
+# ---------------------------------------------------------------------------
+# Check local-vs-origin sync
+# ---------------------------------------------------------------------------
+
+if [[ -n "${CLAUDE_HOOK_TEST_SYNC:-}" ]]; then
+  # Test/CI override — no real git calls
+  case "$CLAUDE_HOOK_TEST_SYNC" in
+    behind:*)
+      _behind="${CLAUDE_HOOK_TEST_SYNC#behind:}"
+      echo "[HOOK INFO] local is behind origin by ${_behind} commit(s) — run 'git pull' before reading repo state." >&2
+      ;;
+    fetch-failed)
+      echo "[HOOK INFO] git fetch failed (offline?) — could not verify local-vs-origin sync." >&2
+      ;;
+    ok)
+      : # up to date — no output
+      ;;
+  esac
+else
+  # Real mode: fetch then check commit count.
+  # Skip silently if REPO_ROOT is not a git repository (e.g. test temp dirs).
+  if git -C "$REPO_ROOT" rev-parse --git-dir &>/dev/null; then
+    _default_branch=""
+    _default_branch="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||')" || true
+    if [[ -z "$_default_branch" ]]; then
+      _default_branch="main"
+    fi
+
+    if git -C "$REPO_ROOT" fetch origin --quiet 2>/dev/null; then
+      _behind="$(git -C "$REPO_ROOT" rev-list --count HEAD.."origin/${_default_branch}" 2>/dev/null || echo 0)"
+      if [[ "$_behind" -gt 0 ]]; then
+        echo "[HOOK INFO] local is behind origin/${_default_branch} by ${_behind} commit(s) — run 'git pull' before reading repo state." >&2
+      fi
+    else
+      echo "[HOOK INFO] git fetch failed (offline?) — could not verify local-vs-origin sync." >&2
+    fi
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 # This hook NEVER BLOCKS — always exit 0
