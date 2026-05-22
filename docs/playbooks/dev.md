@@ -84,3 +84,48 @@ fi
 
 Without this guard, test cases that point `--test-root` at a temp dir will see
 unexpected output (e.g. "offline" info note) and fail.
+
+## E2E harness gotchas (lib_e2e.sh / fake-gh.sh)
+
+### fake-gh.sh stores labels as plain strings; output normalizes to objects
+
+The stub's internal state stores labels as `["bug","in-progress"]` (array of
+strings). When outputting via `--json labels`, the stub normalizes them to
+`[{"name":"bug",...}]` format (matching real `gh`). Assertion helpers in
+`lib_e2e.sh` read from the state file directly and use the string format.
+
+**Consequence:** test assertions against stub state (e.g., `assert_label_present`)
+work with plain string label names. Tests that call `gh ... --json labels --jq
+'[.labels[].name]'` work because normalization happens in `_apply_jq_output`.
+Don't mix the two: don't call `jq '.labels[].name'` directly on state file values.
+
+### Cannot delete a local branch while a worktree is checked out on it
+
+`git branch -D <branch>` fails if a worktree is currently on that branch. The
+correct cleanup order after merge:
+1. `e2e_remove_worktree <task_id>` — removes the worktree directory AND deletes
+   the local branch (in that order).
+2. `assert_branch_deleted <branch>` — now passes.
+
+`e2e_merge_pr` only deletes the REMOTE branch (mirrors real `gh pr merge`
+behavior). Local branch cleanup is a separate step.
+
+### `jq -r` does not compact-format arrays/objects
+
+`jq -r` only strips quotes from string values. Arrays and objects are still
+pretty-printed (multi-line). When asserting on JSON array/object output, compare
+via `| jq -c .` to get compact single-line form, or use `assert_eq` with a
+compact-JSON expected string.
+
+### Each test file must call `e2e_setup` once and then `print_summary` at the end
+
+`e2e_setup` registers the EXIT trap for teardown. If a test file sources
+`lib_e2e.sh` but doesn't call `e2e_setup`, the teardown trap is never registered
+and sandbox directories will leak. Always the first call in a test file.
+
+### `local` keyword is only valid inside bash functions
+
+The stub script (`fake-gh.sh`) runs at top level (not inside functions).
+Using `local varname` at top level produces "local: can only be used in a
+function" and the variable is never set. Use plain `varname=""` for top-level
+variable declarations in the stub.
