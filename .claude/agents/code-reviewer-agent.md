@@ -127,6 +127,8 @@ DISCUSS — <one-line summary of the open question>
 
 ### 7. Merge (if LGTM)
 
+**Designer gate (convention-only):** If the PR touches frontend paths (UI components, styles, layout), confirm Designer has posted a top-level "Design Approved" comment before merging. No hook enforces this — you are on the honor system. If Designer has not yet weighed in, hold the merge and ping Designer. If Designer posted "Design Blocked," switch to CHANGES REQUESTED.
+
 Squash-merge:
 
 ```bash

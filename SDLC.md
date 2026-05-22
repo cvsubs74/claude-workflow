@@ -116,6 +116,8 @@ Closes #N  (or Refs #N if this is part of a multi-PR effort)
 
 Apply `in-review` label (Dev's signal; Code Reviewer watches for it). PRs must pass CI (shellcheck, bash syntax, markdown lint) before Code Reviewer merges.
 
+**Designer gate (convention-only):** For PRs touching frontend paths (UI components, styles, layout), Code Reviewer waits for Designer to post a top-level "Design Approved" comment before squash-merging. No hook enforces this — Code Reviewer is on the honor system. If Designer posts "Design Blocked," Code Reviewer posts `CHANGES REQUESTED` and Dev iterates. (Hook 7 to enforce this mechanically is the documented upgrade path if this repo gains a meaningful UI surface.)
+
 ---
 
 ## Step 6 — Review
