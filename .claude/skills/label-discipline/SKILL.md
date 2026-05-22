@@ -37,6 +37,8 @@ This is a **reference skill** (pure documentation, no allowed-tools). Every role
 3. **Only QA applies `resolved`.** QA Agent applies `resolved` only after two consecutive passing verification runs (the §TWO-PASS rule). No other agent closes an issue as resolved.
 
 4. **Only Dev applies `in-progress` + `in-review`.** These are Dev's status signals. Code Reviewer and PM read them; they do not write them.
+   - **`in-review` is hook-enforced** (Hook 2 / `restricted-label-ownership.sh`): any attempt by a non-Dev agent to apply it is mechanically blocked.
+   - **`in-progress` is convention-only** — no hook protects it. Dev applies it by discipline on issue pickup. If another agent mistakenly sets it, no workflow gate fails; the label is purely informational.
 
 ---
 
