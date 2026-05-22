@@ -265,4 +265,38 @@ run_case_warn "$HOOK" 'gh pr create --body "refs #5" (refs not auto-close)' 'gh 
 run_case_warn "$HOOK" 'gh pr create --body-file without Closes #N'   "gh pr create --body-file $TMP_WITHOUT_CLOSES"     "warn"
 
 # ===========================================================================
+# Hook 6 — pr-merge-requires-delete-branch.sh (~18 cases)
+# Blocks `gh pr merge` when --delete-branch (or -d) is absent.
+# ===========================================================================
+echo ""
+echo "--- HOOK 6: pr-merge-requires-delete-branch.sh ---"
+HOOK="$HOOKS_DIR/pr-merge-requires-delete-branch.sh"
+
+# Block paths — missing --delete-branch
+run_case "$HOOK" "gh pr merge 5 (no flags)"                "gh pr merge 5"                                            "block"
+run_case "$HOOK" "gh pr merge 5 --squash"                  "gh pr merge 5 --squash"                                   "block"
+run_case "$HOOK" "gh pr merge --squash 5"                  "gh pr merge --squash 5"                                   "block"
+run_case "$HOOK" "gh pr merge 5 --squash --admin"          "gh pr merge 5 --squash --admin"                           "block"
+run_case "$HOOK" "gh pr merge '5' (single-quoted)"         "gh pr merge '5'"                                          "block"
+run_case "$HOOK" 'gh pr merge "5" (double-quoted)'         'gh pr merge "5"'                                          "block"
+run_case "$HOOK" "compound: cd /tmp && gh pr merge 5"      "cd /tmp && gh pr merge 5"                                 "block"
+run_case "$HOOK" "URL form: .../pull/5"                    "gh pr merge https://github.com/owner/repo/pull/5"         "block"
+
+# Allow paths — --delete-branch or -d present
+run_case "$HOOK" "gh pr merge 5 --squash --delete-branch"   "gh pr merge 5 --squash --delete-branch"                  "allow"
+run_case "$HOOK" "gh pr merge 5 --delete-branch --squash"   "gh pr merge 5 --delete-branch --squash"                  "allow"
+run_case "$HOOK" "gh pr merge --delete-branch 5"            "gh pr merge --delete-branch 5"                           "allow"
+run_case "$HOOK" "gh pr merge 5 -d (short form)"            "gh pr merge 5 -d"                                        "allow"
+run_case "$HOOK" "gh pr merge -d 5 --squash"                "gh pr merge -d 5 --squash"                               "allow"
+
+# Allow paths — not a merge command
+run_case "$HOOK" "gh pr view 5 (not merge)"                "gh pr view 5"                                             "allow"
+run_case "$HOOK" "gh pr create (not merge)"                "gh pr create --title x --body y"                          "allow"
+run_case "$HOOK" "gh issue close 5"                        "gh issue close 5"                                         "allow"
+run_case "$HOOK" "git push origin feat/foo"                "git push origin feat/foo"                                 "allow"
+run_case "$HOOK" "ls -la (non-gh)"                         "ls -la"                                                   "allow"
+
+CLAUDE_HOOK_BYPASS=1 run_case "$HOOK" "bypass with blocked form" "gh pr merge 5 --squash" "allow"
+
+# ===========================================================================
 print_summary
