@@ -15,3 +15,21 @@ Project-specific notes that future-you (the PM agent on this project) needs. App
 **`priority:medium` is the right default for workflow-tightening issues.** Issues that enforce existing documented rules (CI, hooks, docs) but don't block active work today are medium. Reserve high for issues that make an existing workflow step vacuous or actively misleading in production.
 
 **Umbrella issues get `pm` label.** When filing or promoting an issue that PM is actively tracking as an umbrella (multi-slice), add `pm` to the umbrella so it shows up in `gh issue list --label pm`. Children do not get `pm`.
+
+## Triage pass — 2026-05-21 (umbrella #33 — /investigate audit findings)
+
+**Doc-fix bundling judgment.** When two findings are both trivial doc/text fixes, the instinct is to bundle them into one PR. Prefer separate issues when the fixes touch different file layers (e.g., agent contract file vs. hook script headers) — cleaner diff history and easier bisect. Reserve bundling for fixes so small that the overhead of a second PR exceeds the fix itself.
+
+**"Two paths" findings — pick one and note the override.** When an issue presents two remediation paths (e.g., extend hook enforcement vs. align docs to current enforcement), PM picks the recommended path and files the slice accordingly. Always note in the issue body that the operator can override to the other path — this documents the decision without blocking. Default bias: prefer the simpler path (doc alignment) over adding hook complexity unless the label/gate is truly consequential.
+
+**Umbrellas track; slices are picked up — never `prioritized` an umbrella.** An umbrella issue carries `enhancement,pm` only (plus optionally `backlog` before PM triages it away). Never apply `prioritized` or `priority:*` to the umbrella itself — those labels signal "Dev can pick this up and start coding." Dev sorting the prioritized queue by priority would see the umbrella tied with real slices and waste cycles reading the body to realize it's a tracker. Only the slices get `prioritized,priority:*`. The umbrella stays open until the final slice merges with `Closes #<umbrella>`.
+
+**Final-slice `Closes` pattern.** When slicing an umbrella, designate only the last slice to use `Closes #<umbrella>`. Earlier slices use `Refs #<umbrella>`. Explicitly call this out in the umbrella triage comment so Dev knows which issue to use `Closes` on.
+
+## Triage pass — 2026-05-22 (umbrella #44 — /investigate audit findings, round 2)
+
+**Fold-in instead of separate slice.** When two findings share a root cause and one fix covers both, fold the weaker one in rather than filing a redundant slice. Document the fold decision in the triage table (Decision = "Folded into A"; Issue = "—") so the audit trail is complete. Do not leave a dangling slice that Dev would pick up and find nothing to do.
+
+**Out-of-scope findings still get a triage row.** Even when a finding is explicitly out of scope (documented limitation, design choice), give it a row in the triage table with Decision = "Out of scope" and a one-line rationale. This closes the loop for any future reader wondering why a finding wasn't acted on.
+
+**Operator pre-approved umbrellas skip `backlog`.** When the operator drives the investigation directly and explicitly hands PM the findings to slice, open the umbrella with `enhancement,pm` (no `backlog`). The `backlog` label signals "PM hasn't looked at this yet" — operator-driven audits skip that queue by definition.

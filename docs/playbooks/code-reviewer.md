@@ -39,6 +39,26 @@ Any hook that uses `grep -qE '\bgh[[:space:]]+pr[[:space:]]+merge\b'` (or simila
 
 **When posting LGTM verdicts on PRs that discuss hooks:** always use `--body-file` — never inline the body as a `--body` argument if the body references hook command examples.
 
+## Worktree blocks local branch deletion at merge time
+
+`gh pr merge <N> --squash --delete-branch` always succeeds on the remote (PR merged, remote branch deleted) but exits non-zero when a local worktree has the branch checked out:
+
+```
+failed to delete local branch <branch>: failed to run git: error: Cannot delete branch '<branch>' checked out at '.worktrees/<task-id>'
+```
+
+This is not a merge failure — verify with `gh pr view <N> --json state,mergedAt,mergeCommit`. The PR is MERGED and the remote branch is gone. The lingering local worktree is a Dev-session cleanup concern; the Dev agent that created the worktree should `git worktree remove .worktrees/<task-id>` after their session ends. Not a merge blocker. Seen on PRs #50, #51, #52 (issue #48 drain, May 2026).
+
+## Missing in-review label — Hook 3 blocks merge
+
+Hook 3 (`pr-merge-requires-in-review.sh`) blocks `gh pr merge <N>` when the PR lacks the `in-review` label. Hook 2 (`restricted-label-ownership.sh`) also blocks the code-reviewer-agent from applying `in-review` (Dev-only label). If a Dev session opens a PR without applying `in-review`, the merge is doubly gated. Remediation options in priority order:
+
+1. Operator applies `in-review` directly (`gh pr edit <N> --add-label in-review` as operator — SDLC allows operator override of any label).
+2. Route back to the Dev session: `gh pr edit <N> --add-label in-review`.
+3. Ops emergency bypass: `CLAUDE_HOOK_BYPASS=1` (document reason).
+
+Do NOT bypass silently — surface to operator and let them choose. Seen on PR #49 (issue #47, May 2026).
+
 ## POSIX ERE bracket expression vs alternation — hook regex trap
 
 In POSIX ERE, `[[:space:]|$]` is a bracket expression where `|` and `$` are **literal characters**, not alternation or end-of-line anchors. The correct form to mean "whitespace OR end-of-line" is `([[:space:]]|$)`. The two look visually similar but behave differently:
