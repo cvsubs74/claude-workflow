@@ -281,6 +281,71 @@ This is an **ops-emergency escape hatch only** — for security hotfixes, post-i
 
 ---
 
+## Verifying a hook outside its self-test
+
+### The self-firing recursion problem
+
+When you try to drive a `PreToolUse/Bash` hook manually from inside a live Claude Code session — by piping a JSON payload to the hook script — Claude Code itself fires on the outer `Bash` tool call. If the payload string contains the blocked text (e.g. `"git push origin main"`), the PreToolUse hook finds it inside the echo'd argument and blocks the test before the script ever runs.
+
+**Repro — this fails inside Claude Code:**
+
+```bash
+# Claude Code fires Hook 1 on this outer Bash call because
+# "git push origin main" appears in the echo'd string.
+echo '{"tool_name":"Bash","tool_input":{"command":"git push origin main"}}' \
+  | bash .claude/hooks/no-direct-push-main.sh
+```
+
+The hooks are working exactly as designed — they fire on every Bash call. The problem is that the test payload leaks the blocked string into the outer command.
+
+### Workarounds
+
+**Option 1 — Stage the payload in a file (recommended)**
+
+Write the JSON to a temp file outside the `Bash` call, then pipe from the file. The outer command no longer contains the blocked string.
+
+```bash
+# Step 1: write payload — no blocked text in this command
+cat > /tmp/hook-test-payload.json << 'EOF'
+{"tool_name":"Bash","tool_input":{"command":"git push origin main"}}
+EOF
+
+# Step 2: drive the hook — outer command has no blocked text
+bash .claude/hooks/no-direct-push-main.sh < /tmp/hook-test-payload.json
+# Expected: exit 2 + stderr block message
+echo "Exit code: $?"
+```
+
+This is the recommended path for ad-hoc e2e spot-checks from inside a Claude Code session. The two-step split keeps the blocked string inside the file (opaque to the hook scanner) while the outer Bash command remains clean.
+
+**Option 2 — Run from a plain terminal (no hook registered)**
+
+Open a regular terminal (not a Claude Code session). PreToolUse hooks are only registered when Claude Code is running, so the outer Bash call is not intercepted.
+
+```bash
+# In a plain terminal:
+echo '{"tool_name":"Bash","tool_input":{"command":"git push origin main"}}' \
+  | bash .claude/hooks/no-direct-push-main.sh
+```
+
+This is the cleanest path for full e2e coverage. The automated test suite (`bash tests/run.sh`) uses this environment by design.
+
+**Option 3 — `CLAUDE_HOOK_BYPASS=1` (ops-emergency only)**
+
+Setting `CLAUDE_HOOK_BYPASS=1` disables all hook guards for the session. This silences the recursion but also defeats the hooks you are trying to test. Reserve this for the ops-emergency scenarios described in §Operator override — do not use it as a testing workaround.
+
+### Summary
+
+| Approach | Works inside Claude Code? | Hooks still active for test? | Recommended? |
+|----------|--------------------------|------------------------------|--------------|
+| File-staged payload | Yes | Yes | **Yes** |
+| Plain terminal | N/A (outside Claude Code) | Yes | Yes — for full e2e |
+| `CLAUDE_HOOK_BYPASS=1` | Yes | No | No — defeats the test |
+
+The automated suite in `tests/` already runs in a plain-terminal CI context and covers the canonical cases. Use the file-staged-payload approach for quick one-off spot-checks without leaving your Claude Code session.
+
+---
+
 ## How hooks are registered
 
 Hooks are registered in `.claude/settings.json` under a `hooks` key. Different event types use different top-level keys. Example showing both `PreToolUse` and `SessionStart`:
