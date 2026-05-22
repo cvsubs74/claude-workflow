@@ -45,3 +45,19 @@ The test harness (`bash tests/run.sh`) pipes JSON payloads directly to hook
 scripts, bypassing Claude Code's hook registration. Use this to verify hooks
 work correctly. Do NOT try to pipe payloads interactively when those payloads
 contain trigger phrases — Claude Code intercepts the tool call first.
+
+### Hook tests that read real git state must use an env-var override
+
+Hooks that call `git symbolic-ref --short HEAD` or similar at test time are
+flaky: the result depends on which branch the test runner is checked out on.
+
+Pattern: add an env-var override (e.g. `CLAUDE_HOOK_TEST_BRANCH`) that short-
+circuits the git call. Set it in the test invocation; never rely on real git
+state inside a test. Hook 1 uses this pattern; Hook 4 uses the analogous
+`CLAUDE_HOOK_TEST_ROOT` for filesystem checks.
+
+```bash
+# Hermetic — branch is explicit, not read from git
+CLAUDE_HOOK_TEST_BRANCH=feat/test run_case "$HOOK" "..." "git commit -m fix" "allow"
+CLAUDE_HOOK_TEST_BRANCH=main      run_case "$HOOK" "..." "git commit -m fix" "block"
+```
