@@ -61,3 +61,26 @@ state inside a test. Hook 1 uses this pattern; Hook 4 uses the analogous
 CLAUDE_HOOK_TEST_BRANCH=feat/test run_case "$HOOK" "..." "git commit -m fix" "allow"
 CLAUDE_HOOK_TEST_BRANCH=main      run_case "$HOOK" "..." "git commit -m fix" "block"
 ```
+
+Hook 4's sync check (added in #45) uses the analogous `CLAUDE_HOOK_TEST_SYNC` to
+avoid real `git fetch` calls during tests. Three sentinel values:
+
+```bash
+CLAUDE_HOOK_TEST_SYNC=behind:5    # simulate 5 commits behind
+CLAUDE_HOOK_TEST_SYNC=ok          # simulate up to date (silent)
+CLAUDE_HOOK_TEST_SYNC=fetch-failed # simulate offline / no network
+```
+
+### Hooks that call git must guard against non-git directories
+
+Hook code that runs `git -C "$REPO_ROOT" <cmd>` will fail if `REPO_ROOT` is a
+temp directory used by tests (not a real git repo). Always guard with:
+
+```bash
+if git -C "$REPO_ROOT" rev-parse --git-dir &>/dev/null; then
+  # ... git calls here
+fi
+```
+
+Without this guard, test cases that point `--test-root` at a temp dir will see
+unexpected output (e.g. "offline" info note) and fail.

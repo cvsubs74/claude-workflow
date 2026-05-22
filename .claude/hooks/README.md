@@ -181,9 +181,9 @@ This is intentional: operators are trusted principals and can apply any label pe
 
 ---
 
-## Hook 4: `session-start-doc-check.sh` — Done (#12)
+## Hook 4: `session-start-doc-check.sh` — Done (#12, extended #45)
 
-**Purpose:** Sanity-check that required cold-start docs exist in the repo root at session start. Surfaces a warning (not a block) if any required doc is missing, so the agent knows to propose creating it before acting.
+**Purpose:** Sanity-check that required cold-start docs exist in the repo root at session start, and that the local branch is not behind `origin/<default-branch>`. Surfaces informational notes (never blocks) for missing docs or stale local state so the agent knows the situation before acting.
 
 **Trigger:** `SessionStart` event — fires once per Claude Code session, before the agent takes any action.
 
@@ -209,13 +209,30 @@ This is intentional: operators are trusted principals and can apply any label pe
 - `SDLC.md` — branch naming, PR workflow, label scheme (required)
 - `docs/ARCHITECTURE.md` — system shape + change log (optional; informational note if absent)
 
-**This hook NEVER BLOCKS.** Exit code is always 0. Blocking `SessionStart` would brick every session. The hook is a warning surface only.
+**Local-vs-origin sync check:**
+
+After the doc checks, the hook runs `git fetch origin --quiet` and then checks whether local is behind `origin/<default-branch>` using `git rev-list --count HEAD..origin/<default-branch>`.
+
+- If local is N commits behind: emits `[HOOK INFO] local is behind origin/<branch> by N commit(s) — run 'git pull' before reading repo state.`
+- If up to date: silent (no noise for the common case).
+- If `git fetch` fails (no network / offline): emits `[HOOK INFO] git fetch failed (offline?) — could not verify local-vs-origin sync.`
+
+The default branch is detected via `git rev-parse --abbrev-ref origin/HEAD`; falls back to `main` if that command fails (e.g. no remote configured).
+
+**Why this matters:** All 8 agent cold-start protocols run `git log origin/<branch>` without a preceding `git fetch`. A stale local silently sees old state and reports it as current. This hook catches the staleness at the point where it can still be corrected — before the agent acts on bad data. (Audit finding: a session 5 commits behind origin reported 0 in-flight PRs and missing `docs/ARCHITECTURE.md` — both wrong.)
+
+**This hook NEVER BLOCKS.** Exit code is always 0. Blocking `SessionStart` would brick every session. The hook is an advisory surface only.
 
 **Exit codes:**
 - `0` — always
 
 **Test-root override (for tests and CI):**
 - `--test-root <dir>` flag, or `CLAUDE_HOOK_TEST_ROOT=<dir>` env var — use `<dir>` as the repo root instead of `$PWD`. Flag takes precedence over env var.
+
+**Sync check override (for tests and CI — prevents real git remote calls):**
+- `CLAUDE_HOOK_TEST_SYNC=behind:N` — simulate local being N commits behind origin
+- `CLAUDE_HOOK_TEST_SYNC=ok` — simulate local being up to date (no output)
+- `CLAUDE_HOOK_TEST_SYNC=fetch-failed` — simulate `git fetch` failure (offline)
 
 ---
 

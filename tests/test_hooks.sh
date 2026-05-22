@@ -252,6 +252,11 @@ run_case_session "all three required missing (warnings)"     "$ROOT_NONE"       
 run_case_session "docs/ARCHITECTURE.md missing (info only)"  "$ROOT_NO_ARCH"    "ARCHITECTURE.md"
 run_case_session "CLAUDE_HOOK_BYPASS=1 (silent)"             "$ROOT_EMPTY"      "BYPASS" "CLAUDE_HOOK_BYPASS=1"
 
+# Sync-check cases (use CLAUDE_HOOK_TEST_SYNC to avoid real git remote calls)
+run_case_session "sync: behind by 5 — emits stale INFO"      "$ROOT_ALL"        "behind" "CLAUDE_HOOK_TEST_SYNC=behind:5"
+run_case_session "sync: up to date — no INFO emitted"        "$ROOT_ALL"        ""       "CLAUDE_HOOK_TEST_SYNC=ok"
+run_case_session "sync: fetch failure — emits offline INFO"  "$ROOT_ALL"        "offline" "CLAUDE_HOOK_TEST_SYNC=fetch-failed"
+
 # ===========================================================================
 # Hook 5 — pr-body-closes-check.sh (19 cases)
 # Uses run_case_warn because Hook 5 always exits 0 — assertion is whether
