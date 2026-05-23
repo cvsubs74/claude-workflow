@@ -646,5 +646,65 @@ else
   FAIL=$(( FAIL + 1 ))
 fi
 
+# ---------------------------------------------------------------------------
+# Tests 17-18: Issue #87 regression — non-TTY banner suppression + local
+# branch checkout conflict (both initial checks defeated simultaneously).
+#
+# gh v2.89.0+ suppresses the "Merged pull request" banner when stdout is
+# captured in a subshell (non-TTY). When the head branch is checked out in
+# a sibling worktree, gh also exits non-zero (local branch delete fails).
+# Section 3 Tier 3 must detect success by calling gh pr view --json state.
+# ---------------------------------------------------------------------------
+
+# Stub that simulates the non-TTY subshell path: no banner, exits 1
+MERGE_NOTTY_STUB="${HOOK7_TMPDIR}/merge_notty_stub.sh"
+printf '#!/usr/bin/env bash\necho "failed to delete local branch: Cannot delete branch checked out at worktree"\nexit 1\n' \
+  > "$MERGE_NOTTY_STUB"
+chmod +x "$MERGE_NOTTY_STUB"
+
+# Test 17 — non-TTY path, state=MERGED → Tier 3 detects success, cleanup fires
+hook7_reset_worktree
+STATE_MERGED_STUB="${HOOK7_TMPDIR}/state_merged_stub.sh"
+printf '#!/usr/bin/env bash\nprintf "MERGED\\n"\nexit 0\n' > "$STATE_MERGED_STUB"
+chmod +x "$STATE_MERGED_STUB"
+
+NOTTY_MERGED_STDERR="$(
+  env CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO" \
+      CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$BRANCH_STUB_SCRIPT" \
+      CLAUDE_HOOK_TEST_MERGE_CMD="$MERGE_NOTTY_STUB" \
+      CLAUDE_HOOK_TEST_PR_STATE_CMD="$STATE_MERGED_STUB" \
+  bash "$MERGE_PR_SCRIPT" 99 --squash 2>&1 >/dev/null || true)"
+
+if printf '%s' "$NOTTY_MERGED_STDERR" | command grep -q "\[merge-pr\] Removing worktree"; then
+  printf '  PASS  %-62s  (cleanup)\n' "non-TTY+exit1, state=MERGED → Tier 3 cleanup fires"
+  PASS=$(( PASS + 1 ))
+else
+  printf '  FAIL  %-62s  expected cleanup log (stderr: %s)\n' \
+    "non-TTY+exit1, state=MERGED → Tier 3 cleanup fires" "$NOTTY_MERGED_STDERR"
+  FAIL=$(( FAIL + 1 ))
+fi
+
+# Test 18 — non-TTY path, state=OPEN → Tier 3 does NOT treat as success
+hook7_reset_worktree
+STATE_OPEN_STUB="${HOOK7_TMPDIR}/state_open_stub.sh"
+printf '#!/usr/bin/env bash\nprintf "OPEN\\n"\nexit 0\n' > "$STATE_OPEN_STUB"
+chmod +x "$STATE_OPEN_STUB"
+
+NOTTY_OPEN_STDERR="$(
+  env CLAUDE_HOOK_TEST_REPO_ROOT="$HOOK7_REPO" \
+      CLAUDE_HOOK_TEST_GH_BRANCH_CMD="$BRANCH_STUB_SCRIPT" \
+      CLAUDE_HOOK_TEST_MERGE_CMD="$MERGE_NOTTY_STUB" \
+      CLAUDE_HOOK_TEST_PR_STATE_CMD="$STATE_OPEN_STUB" \
+  bash "$MERGE_PR_SCRIPT" 99 --squash 2>&1 >/dev/null || true)"
+
+if ! printf '%s' "$NOTTY_OPEN_STDERR" | command grep -q "\[merge-pr\] Removing worktree"; then
+  printf '  PASS  %-62s  (no cleanup)\n' "non-TTY+exit1, state=OPEN → cleanup correctly skipped"
+  PASS=$(( PASS + 1 ))
+else
+  printf '  FAIL  %-62s  expected no cleanup (stderr: %s)\n' \
+    "non-TTY+exit1, state=OPEN → cleanup correctly skipped" "$NOTTY_OPEN_STDERR"
+  FAIL=$(( FAIL + 1 ))
+fi
+
 # ===========================================================================
 print_summary

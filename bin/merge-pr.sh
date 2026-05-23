@@ -36,11 +36,15 @@
 # ENVIRONMENT OVERRIDES (test isolation — same as auto-clean-worktree.sh):
 #   CLAUDE_HOOK_BYPASS=1                 — skip all checks (ops emergency)
 #   CLAUDE_HOOK_TEST_REPO_ROOT=<dir>     — override repo root
-#   CLAUDE_HOOK_TEST_GH_BRANCH_CMD=<cmd> — override `gh pr view` call
+#   CLAUDE_HOOK_TEST_GH_BRANCH_CMD=<cmd> — override `gh pr view <N> --json headRefName` call
 #   CLAUDE_HOOK_TEST_MERGE_CMD=<cmd>     — override `gh pr merge` itself
 #     stub receives: <pr_num> --delete-branch <extra-flags...>
 #     must print merge output to stdout (include "Merged pull request" on success)
 #     must exit 0 on success, non-zero on failure
+#   CLAUDE_HOOK_TEST_PR_STATE_CMD=<cmd>  — override `gh pr view <N> --json state` call
+#     stub receives: <pr_num>
+#     must print the PR state string to stdout ("MERGED", "OPEN", "CLOSED", etc.)
+#     used by Section 3 fallback to detect remote merge success in non-TTY contexts
 
 set -euo pipefail
 
@@ -109,22 +113,47 @@ printf '%s\n' "$MERGE_OUTPUT"
 # ---------------------------------------------------------------------------
 # SECTION 3 — Did the merge succeed on GitHub?
 #
-# gh pr merge exits 0 on success even when the local branch deletion fails
-# ("Cannot delete branch ... checked out at ..."). We consider the merge
-# successful if gh output contains "Merged pull request" regardless of the
-# exit code (which may be 1 due to the local-branch deletion conflict).
+# Three-tier success detection (in order):
 #
-# This is the same failure mode as hypothesis #2 in issue #81: gh returns
-# exit code 1 for the local-branch-checkout conflict, but the GitHub-side
-# merge already succeeded. We must NOT skip cleanup just because gh exited 1.
+# Tier 1 — Banner match: gh printed "Merged pull request" on stdout.
+#   Fast path. Works when gh runs in a TTY or when stdout is not captured.
+#
+# Tier 2 — Exit 0 without banner: gh exited 0 without printing the banner.
+#   Covers older gh versions that don't print the string; trust exit code 0.
+#
+# Tier 3 — Remote state check (Issue #87 fix): both tier 1 and tier 2 failed.
+#   This happens when gh v2.89.0+ suppresses the banner in a non-TTY subshell
+#   AND exits non-zero because the local-branch delete failed (the branch is
+#   checked out in a sibling worktree). In this case the GitHub-side merge
+#   already succeeded. We verify by calling `gh pr view <N> --json state` —
+#   if the remote state is "MERGED", treat as success and proceed to cleanup.
+#   One extra API call per merge, which is cheap and TTY-independent.
 # ---------------------------------------------------------------------------
+fetch_pr_state() {
+  local pr_num="$1"
+  if [[ -n "${CLAUDE_HOOK_TEST_PR_STATE_CMD:-}" ]]; then
+    bash -c "${CLAUDE_HOOK_TEST_PR_STATE_CMD} ${pr_num}"
+  else
+    gh pr view "$pr_num" --json state --jq '.state' 2>/dev/null || true
+  fi
+}
+
 MERGE_SUCCEEDED=0
 if printf '%s' "$MERGE_OUTPUT" | grep -qiE 'Merged pull request|merged PR'; then
+  # Tier 1 — banner present in output
   MERGE_SUCCEEDED=1
 elif [[ "$MERGE_EXIT" -eq 0 ]]; then
-  # gh exited 0 without printing "Merged pull request" — treat as success
-  # (older gh versions may not print this string; trust exit code 0)
+  # Tier 2 — exit 0, no banner (older gh)
   MERGE_SUCCEEDED=1
+else
+  # Tier 3 — non-TTY banner suppression + local-branch checkout conflict.
+  # Ask GitHub directly whether the PR merged.
+  PR_STATE="$(fetch_pr_state "$PR_NUM")"
+  if [[ "$PR_STATE" == "MERGED" ]]; then
+    printf '[merge-pr] Remote state=MERGED for PR #%s (gh exited %s, no banner) — proceeding with cleanup.\n' \
+      "$PR_NUM" "$MERGE_EXIT" >&2
+    MERGE_SUCCEEDED=1
+  fi
 fi
 
 if [[ "$MERGE_SUCCEEDED" -eq 0 ]]; then

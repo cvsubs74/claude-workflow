@@ -129,6 +129,7 @@ All tests are plain Bash. Run everything with `bash tests/run.sh` from the repo 
 
 | Date | PR | What changed | Why |
 |------|----|----|-----|
+| 2026-05-22 | #88 | `bin/merge-pr.sh` Section 3: add Tier 3 success-detection path — after banner-match and exit-0 both fail, call `gh pr view <N> --json state` and treat `MERGED` as success; add `CLAUDE_HOOK_TEST_PR_STATE_CMD` env override; `test_hooks.sh` +2 cases (Tests 17–18) | Fix #87: gh v2.89.0+ suppresses banner in non-TTY subshell AND exits 1 when head branch is checked out in sibling worktree — both initial guards defeated, cleanup was silently skipped even though remote merge succeeded |
 | 2026-05-22 | #78 | Hook 7 (`auto-clean-worktree.sh`): PostToolUse hook auto-removes local worktree + branch after `gh pr merge` succeeds; all hook headers bumped "of 6" → "of 7"; `test_hooks.sh` +12 cases; `test_e2e_hook7_worktree_cleanup.sh` +10 E2E assertions | Closes recurring post-merge cleanup gap (resolves #72) |
 | 2026-05-22 | #43 | Initial `docs/ARCHITECTURE.md` created from template | Eliminates session-start `[HOOK INFO]` noise; gives agents a live update surface as the system evolves (resolves #38) |
 | 2026-05-22 | #42 | `SDLC.md` Step 5 + `code-reviewer-agent.md` document Designer-gate as convention-only | Honest docs about which gates are mechanical (hooks) vs convention (CR honor system) (resolves #37) |
