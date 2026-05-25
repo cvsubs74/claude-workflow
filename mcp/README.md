@@ -24,7 +24,7 @@ From the [Desktop Extensions / MCPB post](https://www.anthropic.com/engineering/
 npx @anthropic-ai/mcpb init
 
 # Package for distribution
-make pack-mcp NAME=<server-name>   # → mcp/dist/<server-name>.mcpb
+make pack NAME=<server-name>       # → mcp/dist/<server-name>.mcpb
 ```
 
 ## Secrets
