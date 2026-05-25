@@ -73,3 +73,7 @@ When reviewing hook regexes that include a trailing boundary after the command t
 Hook 6's token walk (`for token in $MERGE_SEGMENT`) splits on IFS whitespace. When the merge command is part of a compound command with no space before the semicolon — `gh pr merge N --squash --delete-branch; CMD2` — the token is `--delete-branch;` (with trailing semicolon), which does not equal `--delete-branch`. Hook 6 then (incorrectly) blocks the merge.
 
 **Workaround:** always issue `gh pr merge` as a standalone command, not chained in a compound statement. Seen during PR #53 merge (May 2026). A hook fix (strip trailing semicolons from each token before comparison) is the long-term solution — file a follow-up issue if this recurs.
+
+## bin/merge-pr.sh Tier 3 test isolation gap — Test 16 makes a real gh API call
+
+`test_hooks.sh` Test 16 (failed merge stub, cleanup skipped) does NOT set `CLAUDE_HOOK_TEST_PR_STATE_CMD`. When the Tier 3 branch executes, it falls through to the real `gh pr view 99 --json state` call. Since PR 99 doesn't exist, `gh` errors out, the `|| true` catches it, `PR_STATE` is empty, and cleanup is correctly skipped. Test result is correct. However, this means Test 16 makes a live network call in the test suite. Non-blocking, but if the network is unavailable or GH auth is not set, Test 16's Tier 3 path may behave differently (still passes because empty != "MERGED", but worth knowing). Seen during PR #88 review (May 2026).
