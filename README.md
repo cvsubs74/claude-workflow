@@ -22,20 +22,44 @@ It is deliberately small and free of project-specific content. Customize once, s
 
 ```bash
 # 1. Clone into a new project, or copy the .claude/ + top-level docs into an existing one
-git clone https://github.com/cvsubs74/claude-workflow.git my-new-project
-cd my-new-project
+git clone https://github.com/cvsubs74/claude-workflow.git my-new-product
+cd my-new-product
 rm -rf .git && git init -b main
 
-# 2. Customize CLAUDE.md — fill in placeholders ({{PROJECT_NAME}}, {{GITHUB_REPO}}, etc.)
-./bin/init-project.sh   # interactive — sets project name, repo, default branch
+# 2. THE first command — interactive scaffold setup
+./bin/init-project.sh
+```
 
-# 3. Open in Claude Code and spawn the team
+`bin/init-project.sh` fills in `{{PROJECT_NAME}}` / `{{GITHUB_REPO}}` / `{{DEFAULT_BRANCH}}` / test+lint+dev+deploy commands across CLAUDE.md and the agent files, sanity-checks all 30+ scaffolds shipped, offers to bootstrap GitHub labels, and creates a stub `bin/init.sh` (so the session-opener hook has something to suggest). ~30 seconds of typing.
+
+```bash
+# 3. Open Claude Code and spawn the team
 claude
-# then in the prompt:
+```
+
+Then, your first slash command:
+
+```
 /onboard-team
 ```
 
-That's it. The Team Lead will read `CLAUDE.md`, anchor on recent state, and accept your first goal.
+Spawns the Team Lead + 7 always-on specialists. The Team Lead reads `CLAUDE.md`, anchors on `memory/PROGRESS.md` (which is empty), and asks you for the first goal.
+
+### Your first goal — two natural patterns
+
+| If you have a **fuzzy product idea** | If you have a **concrete product spec** |
+|---|---|
+| `/office-hours` first — six forcing questions surface the real problem before anyone writes a PRD | Brief the Team Lead directly with the spec; they'll route to PM to write the PRD, then PM/Designer + Dev + QA negotiate the first `docs/contracts/<N>-<slug>.md` |
+
+### Optional: validate the system end-to-end before committing to a real feature
+
+```
+/heartbeat
+```
+
+Ships a one-digit canary change through the full PM → Dev → CR pipeline and confirms all four exit-state criteria pass on the new repo. ~2 minutes; emits PASS / PARTIAL / FAIL.
+
+**TL;DR**: `./bin/init-project.sh` → `claude` → `/onboard-team`.
 
 ---
 
