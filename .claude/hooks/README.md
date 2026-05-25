@@ -17,6 +17,11 @@ See the [Claude Code hooks reference](https://docs.anthropic.com/en/docs/claude-
 | 5 | `pr-body-closes-check.sh` | `PreToolUse/Bash` | `gh pr create` with missing `Closes #N` | **Done — #13** |
 | 6 | `pr-merge-requires-delete-branch.sh` | `PreToolUse/Bash` | `gh pr merge` without `--delete-branch` / `-d` | **Done** |
 | 7 | `auto-clean-worktree.sh` | `PostToolUse/Bash` | after `gh pr merge` succeeds: remove matching `.worktrees/` entry and delete local branch | **Done — #72** |
+| 8 | `workaround-audit.sh` | `PostToolUse/Edit\|Write` | edits that add/remove `WORKAROUND\|HACK\|FIXME` comments — warn (Sept 2025 postmortem defense) | **Done** |
+| 9 | `system-prompt-audit.sh` | `PostToolUse/Edit\|Write` | edits to `.claude/agents/*`, `.claude/skills/*/SKILL.md`, `.claude/commands/*` — append to audit log (Apr 23 postmortem defense) | **Done** |
+| 10 | `verification-gate.sh` | `Stop` | assistant about to claim "done"/"fixed" without recent test/lint/verify calls — warn (`CLAUDE_HOOK_GATE_STOP=block` to enforce) | **Done** |
+| 11 | `session-opener.sh` | `SessionStart` | emit the 3-step opener (read `memory/`, `pwd`, run `bin/init.sh`) per Effective harnesses for long-running agents | **Done** |
+| 12 | `deploy-reminder.sh` | `UserPromptSubmit` | prompts mentioning deploy/release/rollout get a cohort+soak reminder (Apr 23 postmortem defense) | **Done** |
 
 ---
 

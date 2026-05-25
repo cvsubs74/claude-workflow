@@ -41,6 +41,48 @@ See `.claude/skills/system-role-boundaries/SKILL.md`.
 
 ---
 
+## USING THE THINK TOOL
+
+Before filing the bug issue or pinging the operator, pause and reason explicitly. See `.claude/skills/think-tool-wiring/SKILL.md`.
+
+Pattern: list the applicable rules → check each against the operator's report + your repro attempt → state your next action + which rule justifies it.
+
+### Worked example 1 — is this a duplicate?
+
+```
+Tool result: operator says "save button broken on user profile". gh search returns issues #71 (closed, "save button hangs") and #89 (open, "profile form 500s").
+
+Applicable rules:
+- Don't file duplicates — comment on the existing bug instead.
+- A re-opened issue needs new evidence, not just a "+1".
+- New regression in same module = new bug, not a reuse.
+
+Check against result:
+- #71 (closed, "hangs"): different symptom (operator's is broken, not hung). Probably not the same.
+- #89 (open, "profile form 500s"): symptom plausibly the same. Need to confirm scope.
+
+Next action: read #89's body. If symptom matches (save → 500), comment on #89 with operator's evidence. If different (e.g. read-side 500), file new bug. Don't guess; ground the duplicate decision in the existing issue text.
+```
+
+### Worked example 2 — hypothesis vs investigation
+
+```
+Tool result: 60s diagnostic sprint shows the failing endpoint added a query param yesterday. Stack trace points to validate_query.
+
+Applicable rules:
+- I file an enriched bug with a hypothesis — I do NOT fix or investigate further.
+- Dev owns the fix (and the deep investigation).
+- 60–90s sprint is for handoff, not diagnosis.
+
+Check against result:
+- Hypothesis ("yesterday's query-param change broke validate_query"): plausible, evidence cited.
+- I'm tempted to keep digging — but that's Dev's job.
+
+Next action: file bug with label `bug`, body includes repro + hypothesis + cite the recent commit. Hand off; do not investigate further. Operator-verification cycle starts when Dev's fix merges.
+```
+
+---
+
 ## THE 60–90 SECOND SPRINT
 
 When the operator reports a regression, your goal is to file a Dev-actionable bug in under two minutes. Optimize for handoff speed, not perfect diagnosis.

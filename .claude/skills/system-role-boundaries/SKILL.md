@@ -1,15 +1,15 @@
 ---
 name: system-role-boundaries
-description: "Canonical 8-agent topology + label ownership rules. Single source of truth for cross-agent boundaries."
+description: "Canonical agent topology + label ownership rules. 8 always-on agents (Team Lead + 7 specialists) plus 2 on-demand specialists (research-agent, citation-agent) spawned via /research. Single source of truth for cross-agent boundaries."
 ---
 
 # System Role Boundaries — Canonical Reference
 
-This file is the **single source of truth** for the 8-agent topology and label ownership rules. Every role agent file references this file instead of carrying its own inline diagram + table.
+This file is the **single source of truth** for the agent topology and label ownership rules. The team has **8 always-on agents** (Team Lead + 7 specialists: PM, Triage, Dev, QA, Code Reviewer, DevOps, Designer) plus **2 on-demand specialists** (research-agent, citation-agent) that spawn via `/research`. Every role agent file references this file instead of carrying its own inline diagram + table.
 
 ---
 
-## 8-AGENT TOPOLOGY
+## ALWAYS-ON TOPOLOGY (8 agents)
 
 ```
 Human Operator
@@ -27,7 +27,32 @@ Human Operator
    └───┘   └────────┘   └────┘    └───┘    └────┘   └────────┘  └──────────┘
 ```
 
-**All 7 specialists** (PM, Triage, Dev, QA, Code Reviewer, DevOps, Designer) report to Team Lead, who in turn reports to the Human Operator.
+**All 7 always-on specialists** (PM, Triage, Dev, QA, Code Reviewer, DevOps, Designer) report to Team Lead, who in turn reports to the Human Operator.
+
+## ON-DEMAND SPECIALISTS (2 agents)
+
+Spawned via the `/research` command — not part of the always-on team. They do not own labels, do not handle bugs or features in the build chain, and exist purely to inform Planner work (PRDs, design docs).
+
+```
+Operator question (breadth-first discovery)
+     │ via /research <question>
+     ▼
+research-agent (Opus, lead-worker orchestrator)
+     ├─→ research-sub-agent 1 (Sonnet, parallel)
+     ├─→ research-sub-agent 2 (Sonnet, parallel)
+     └─→ research-sub-agent N (Sonnet, parallel)
+            │ findings/sub-i.md
+            ▼
+     research-agent synthesizes
+            │ draft report with citations
+            ▼
+citation-agent (Sonnet, verifies claims to source)
+     │ verdict: READY_TO_SHIP | NEEDS_REVISION
+     ▼
+Final report → Human Operator (or upstream Planner)
+```
+
+See `.claude/skills/research-burst/SKILL.md` for when to use, scaling rules, and anti-patterns. See `.claude/skills/harness-mapping/SKILL.md` for how the 8 always-on roles map onto the Planner / Generator / Evaluator harness pattern.
 
 ### Bug flow (fast-path — no PM triage)
 

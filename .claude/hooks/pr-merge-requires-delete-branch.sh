@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pr-merge-requires-delete-branch.sh — Hook 6 of 7
+# pr-merge-requires-delete-branch.sh — Hook 6 of 12
 #
 # PreToolUse / Bash hook: block `gh pr merge <N>` when --delete-branch
 # (or -d) is missing from the command. Enforces SDLC.md Step 5's

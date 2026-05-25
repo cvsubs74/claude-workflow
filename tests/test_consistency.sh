@@ -107,17 +107,25 @@ fi
 # ===========================================================================
 # Check 3 — Agent topology: system-role-boundaries ↔ .claude/agents/*.md
 # ---------------------------------------------------------------------------
-# Filesystem: 8 agent .md files (excluding README.md).
+# Filesystem: 10 agent .md files (excluding README.md).
+# 8 always-on (the original SDLC team + Team Lead) + 2 on-demand specialists
+# spawned via /research (research-agent, citation-agent — added in the
+# Anthropic-engineering-derived expansion).
 AGENTS_FS="$(cd "$REPO_ROOT/.claude/agents" && ls -1 *-agent.md 2>/dev/null | sed 's/\.md$//' | sort -u)"
 
-# system-role-boundaries: extract from the LABEL OWNERSHIP table's owner
-# column, plus the topology ASCII art. Easier: just count agent names mentioned
-# in the doc. The 8 expected: pm, triage, dev, qa, code-reviewer, devops,
-# designer, team-lead.
-# Use a known-good fixed set + check each is present in the doc.
-EXPECTED_AGENTS="$(printf '%s\n' code-reviewer-agent designer-agent devops-agent dev-agent pm-agent qa-agent team-lead-agent triage-agent | sort -u)"
+EXPECTED_AGENTS="$(printf '%s\n' \
+  code-reviewer-agent \
+  designer-agent \
+  devops-agent \
+  dev-agent \
+  pm-agent \
+  qa-agent \
+  team-lead-agent \
+  triage-agent \
+  research-agent \
+  citation-agent | sort -u)"
 
-assert_set_eq "agent topology: filesystem == expected 8 agents" \
+assert_set_eq "agent topology: filesystem == expected 10 agents" \
   "$AGENTS_FS" "$EXPECTED_AGENTS"
 
 # Verify each expected agent is referenced in system-role-boundaries.
