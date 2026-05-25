@@ -49,8 +49,6 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HOOKS_DIR="$(cd "$SCRIPT_DIR/../.claude/hooks" && pwd)"
-CLEANUP_HOOK="$HOOKS_DIR/auto-clean-worktree.sh"
 
 # ---------------------------------------------------------------------------
 # SECTION 0 — Bypass
@@ -244,7 +242,6 @@ if git -C "$REPO_ROOT" rev-parse --git-dir &>/dev/null 2>&1; then
   GIT_WORKTREE_LIST="$(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null || true)"
 fi
 
-CLEANED_ANYTHING=0
 CURRENT_PATH=""
 CURRENT_BRANCH=""
 
@@ -258,7 +255,6 @@ while IFS= read -r line; do
     if [[ "$CURRENT_BRANCH" == "$HEAD_BRANCH" && \
           "$CURRENT_PATH" == "${WORKTREES_DIR_REAL}/"* ]]; then
       cleanup_worktree "$CURRENT_PATH" "$CURRENT_BRANCH" "$REPO_ROOT" || true
-      CLEANED_ANYTHING=1
     fi
     CURRENT_PATH=""
     CURRENT_BRANCH=""
@@ -270,7 +266,6 @@ if [[ -n "$CURRENT_PATH" && \
       "$CURRENT_BRANCH" == "$HEAD_BRANCH" && \
       "$CURRENT_PATH" == "${WORKTREES_DIR_REAL}/"* ]]; then
   cleanup_worktree "$CURRENT_PATH" "$CURRENT_BRANCH" "$REPO_ROOT" || true
-  CLEANED_ANYTHING=1
 fi
 
 exit 0
