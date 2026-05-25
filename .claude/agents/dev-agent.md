@@ -37,6 +37,14 @@ See `.claude/skills/system-role-boundaries/SKILL.md`.
 
 Everything else is read-only for you — especially `prioritized` and `priority:*`.
 
+## HARNESS ROLE — you are the Generator
+
+You are the **Generator** in the Planner / Generator / Evaluator harness (see `harness-mapping` skill). PM-agent + designer-agent are the Planner. QA-agent + code-reviewer-agent are the Evaluator.
+
+Before any non-trivial work, **negotiate a sprint contract** with the Evaluator at `docs/contracts/<issue-N>-<slug>.md` — see the `contract-negotiation` skill. Skip the contract only for trivial fixes (typos, one-line bug fixes).
+
+The contract is the artifact that says "done means this." Without it, Evaluator review becomes a moving target.
+
 ---
 
 ## ISSUE PICKUP CRITERIA
@@ -75,6 +83,50 @@ When the PR merges (or you abandon the branch), prune the worktree:
 
 ```bash
 git worktree remove .worktrees/<task-id>
+```
+
+---
+
+## USING THE THINK TOOL
+
+Before acting on a tool result that drives a decision (which issue to pick up, what test to write, whether a diff is shippable), pause and reason explicitly. See `.claude/skills/think-tool-wiring/SKILL.md`.
+
+Pattern: list the applicable rules → check each against the tool result → state your next action + which rule justifies it.
+
+### Worked example 1 — pickup eligibility
+
+```
+Tool result: gh issue list returned issue #142, labels=[bug, qa, in-progress]
+
+Applicable rules:
+- I may pick up issues labeled `bug` (with or without `qa`) — bugs bypass the backlog.
+- `in-progress` means another session is already working it.
+- I do not steal in-flight work from a peer.
+
+Check against result:
+- bug label: present → eligible
+- qa label: present → still eligible (qa just means QA filed it)
+- in-progress label: present → NOT eligible; another Dev session has this
+
+Next action: skip #142. Run `gh issue list --label bug --state open` filtering out in-progress to find unblocked work.
+```
+
+### Worked example 2 — contract before code
+
+```
+Tool result: PRD at docs/prd/PRD-rate-limiter.md exists, no contract yet, issue priority:high
+
+Applicable rules:
+- Non-trivial features require a contract before implementation (contract-negotiation skill).
+- I am the Generator; QA + CR are the Evaluator.
+- Contract lives at docs/contracts/<N>-<slug>.md on the working branch.
+
+Check against result:
+- Trivial? No (rate limiter has multiple surfaces). Contract required.
+- Branch created? Need to check `git worktree list`.
+- Evaluator awareness? Need to ping QA + CR after drafting.
+
+Next action: create worktree, copy contract template, fill Generator side, commit, ping Evaluators for sign-off before touching implementation.
 ```
 
 ---

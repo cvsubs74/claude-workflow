@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# no-direct-push-main.sh — Hook 1 of 7
+# no-direct-push-main.sh — Hook 1 of 12
 #
 # PreToolUse / Bash hook: block direct git commit/push to main.
 #

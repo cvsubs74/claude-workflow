@@ -18,11 +18,13 @@ If a doc is missing, that is a signal — propose creating it rather than workin
 
 ## Operating posture (must-know before any action)
 
-- **Multi-agent team workflow.** This repo is driven by 7 specialist roles (PM, Triage, Dev, QA, Code Reviewer, DevOps, Designer) coordinated by the Team Lead — defined under `.claude/agents/`. Pick the right specialist via the `Agent` tool — don't write code directly when a Dev/QA/CR specialist is appropriate.
-- **PRD → Design Doc → code.** New user-facing features require `docs/prd/PRD-<topic>.md` then `docs/design/DESIGN-<topic>.md` before implementation. Bug fixes, refactors, chores, and hotfixes skip the gate (see `SDLC.md` Step 0).
+- **Multi-agent team workflow.** This repo is driven by 7 always-on specialist roles (PM, Triage, Dev, QA, Code Reviewer, DevOps, Designer) coordinated by the Team Lead, plus 2 on-demand specialists (Research, Citation) spawned via `/research`. All defined under `.claude/agents/`. Pick the right specialist via the `Agent` tool — don't write code directly when a Dev/QA/CR specialist is appropriate. See `.claude/skills/harness-mapping/SKILL.md` for the Planner/Generator/Evaluator mapping.
+- **PRD → Design Doc → Contract → code.** New user-facing features require `docs/prd/PRD-<topic>.md`, then `docs/design/DESIGN-<topic>.md`, then a Generator/Evaluator-signed contract at `docs/contracts/<N>-<slug>.md` before implementation (see `.claude/skills/contract-negotiation/SKILL.md`). Bug fixes, refactors, chores, hotfixes, and trivial one-line work skip the gate (see `SDLC.md` Step 0).
 - **No direct commits to the default branch.** Every change goes through a PR; squash-merge after CI green + review.
+- **Evidence before assertions.** Never claim "done" / "fixed" / "complete" without verification (tests, /verify, /eval, lint). The verification-gate Stop hook warns when this slips.
 - **Architecture doc currency.** Update `docs/ARCHITECTURE.md` + append a Change Log row whenever a change touches module shape, data flow, schema, or constraints.
 - **Worktree hygiene.** Each specialist session creates its own `git worktree add` (e.g. `.worktrees/<task-id>`) off `origin/main`. Never reuse another session's worktree, and never edit inside the primary repo path — it's on whoever's branch.
+- **Memory is durable.** Read `memory/PROGRESS.md` + `memory/DECISIONS.md` on cold start. Append-only for `DECISIONS.md`; bullet-and-prune for `NOTES.md`. See `memory/README.md`.
 
 ## Coding discipline
 
@@ -65,8 +67,6 @@ bash tests/run.sh
 - `scripts/` — diagnostic + operational scripts (promote anything you'd run more than once).
 - `Makefile` — common task aliases.
 
-## Project skills & agent playbooks
-
 Two surfaces for capturing what an agent learns on this project — used differently.
 
 - **Agent playbooks** (`docs/playbooks/<agent>.md`) — lightweight per-agent scratchpad. Gotchas, env quirks, "last time I tried X it broke Y." Append freely, delete when stale. Read only by that agent.
@@ -78,10 +78,27 @@ Two surfaces for capturing what an agent learns on this project — used differe
 
 Run these from the Claude Code prompt:
 
-- `/onboard-team` — spawn the 8-agent team with the Team Lead in the driver's seat.
+- `/onboard-team` — spawn the 8-agent team (7 always-on specialists + Team Lead) with the Team Lead in the driver's seat.
 - `/office-hours` — six forcing questions before writing code; surfaces the real problem behind the framing.
 - `/plan-review` — run CEO / engineering / design review lenses on a plan or design doc.
 - `/investigate` — systematic root-cause debugging. No fixes without an investigation.
 - `/ship` — sync, run tests, push, open a PR (manual fallback for the Dev/CR loop).
 - `/retro` — weekly retro summarizing shipping streaks, test health, growth opportunities.
 - `/heartbeat` — live SDLC dry-run: ship a canary change through PM → Dev → CR, verify four exit-state criteria, report PASS / PARTIAL / FAIL.
+- `/eval` — run the eval suite (or a single task / cohort), report per-cohort pass rate + regressions.
+- `/swarm <oracle> <N>` — dispatch N parallel dev-agent sessions against a partitioned task list (git-lockfile coordination). Use only for partitionable bulk work.
+- `/research <question>` — spawn research-agent (lead-worker pattern) for breadth-first discovery with parallel sub-agents + citation verification.
+
+## Capability surface
+
+Beyond the agents + slash commands above, this template ships:
+
+- `evals/` — three grader types, pass@k + pass^k, infra-noise discipline, continuous prod monitor, cross-platform equivalence, cohort segmentation. See `evals/README.md`.
+- `memory/` — durable agent state (PROGRESS / DECISIONS / NOTES). See `memory/README.md`.
+- `docs/contracts/` — Generator ↔ Evaluator sprint contracts. See `docs/contracts/README.md`.
+- `.mcp.json` — Playwright (browser verification) + GitHub MCP by default. Add product-specific MCPs as needed.
+- `tools/` + `mcp/servers/` — filesystem-as-tool-registry pattern + `.mcpb`-packaged project servers.
+- `auto-mode.yaml` + `sandbox.json` — three-layer safety (sandbox + classifier + hooks). See `.claude/skills/safety-layering/SKILL.md`.
+- 12 hooks total: 5 PR-discipline enforcement (existing) + 5 postmortem-prevention (workaround-audit, system-prompt-audit, verification-gate, session-opener, deploy-reminder) + 1 worktree cleanup + 1 doc-check.
+
+## Project skills & agent playbooks

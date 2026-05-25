@@ -7,7 +7,15 @@
       "Edit(.claude/**)",
       "Write(.claude/**)",
       "Edit(docs/**)",
-      "Write(docs/**)"
+      "Write(docs/**)",
+      "Edit(memory/**)",
+      "Write(memory/**)",
+      "Edit(evals/**)",
+      "Write(evals/**)",
+      "Edit(mcp/**)",
+      "Write(mcp/**)",
+      "Edit(tools/**)",
+      "Write(tools/**)"
     ]
   },
   "hooks": {
@@ -15,26 +23,11 @@
       {
         "matcher": "Bash",
         "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/hooks/no-direct-push-main.sh"
-          },
-          {
-            "type": "command",
-            "command": ".claude/hooks/pr-merge-requires-in-review.sh"
-          },
-          {
-            "type": "command",
-            "command": ".claude/hooks/pr-body-closes-check.sh"
-          },
-          {
-            "type": "command",
-            "command": ".claude/hooks/restricted-label-ownership.sh"
-          },
-          {
-            "type": "command",
-            "command": ".claude/hooks/pr-merge-requires-delete-branch.sh"
-          }
+          { "type": "command", "command": ".claude/hooks/no-direct-push-main.sh" },
+          { "type": "command", "command": ".claude/hooks/pr-merge-requires-in-review.sh" },
+          { "type": "command", "command": ".claude/hooks/pr-body-closes-check.sh" },
+          { "type": "command", "command": ".claude/hooks/restricted-label-ownership.sh" },
+          { "type": "command", "command": ".claude/hooks/pr-merge-requires-delete-branch.sh" }
         ]
       }
     ],
@@ -42,20 +35,36 @@
       {
         "matcher": "Bash",
         "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/hooks/auto-clean-worktree.sh"
-          }
+          { "type": "command", "command": ".claude/hooks/auto-clean-worktree.sh" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/workaround-audit.sh" },
+          { "type": "command", "command": ".claude/hooks/system-prompt-audit.sh" }
         ]
       }
     ],
     "SessionStart": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/hooks/session-start-doc-check.sh"
-          }
+          { "type": "command", "command": ".claude/hooks/session-start-doc-check.sh" },
+          { "type": "command", "command": ".claude/hooks/session-opener.sh" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/verification-gate.sh" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/deploy-reminder.sh" }
         ]
       }
     ]

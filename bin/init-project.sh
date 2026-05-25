@@ -123,10 +123,94 @@ if command -v gh >/dev/null 2>&1 && [[ -n "$GITHUB_REPO" ]]; then
   fi
 fi
 
+# -----------------------------------------------------------------------------
+# Sanity-check the Anthropic-engineering-derived scaffolds are present.
+# These ship as part of the template — surface missing ones so a partial
+# checkout doesn't silently lose capability.
+# -----------------------------------------------------------------------------
+echo
+echo "==> Sanity-checking shipped scaffolds..."
+MISSING=()
+for path in \
+    memory \
+    evals/tasks \
+    evals/graders \
+    evals/harness/eval_runner.py \
+    evals/prod_monitor \
+    docs/contracts \
+    docs/contracts/_template.md \
+    docs/tool-design.md \
+    tools \
+    mcp/servers \
+    mcp/Makefile \
+    .mcp.json \
+    auto-mode.yaml \
+    sandbox.json \
+    .claude/skills/eval-runner \
+    .claude/skills/quality-monitor \
+    .claude/skills/harness-mapping \
+    .claude/skills/contract-negotiation \
+    .claude/skills/think-tool-wiring \
+    .claude/skills/safety-layering \
+    .claude/skills/tool-design \
+    .claude/skills/swarm-dispatch \
+    .claude/skills/research-burst \
+    .claude/agents/research-agent.md \
+    .claude/agents/citation-agent.md \
+    .claude/commands/eval.md \
+    .claude/commands/swarm.md \
+    .claude/commands/research.md \
+    .claude/hooks/workaround-audit.sh \
+    .claude/hooks/system-prompt-audit.sh \
+    .claude/hooks/verification-gate.sh \
+    .claude/hooks/session-opener.sh \
+    .claude/hooks/deploy-reminder.sh ; do
+  [[ -e "$path" ]] || MISSING+=("$path")
+done
+
+if [[ ${#MISSING[@]} -eq 0 ]]; then
+  echo "    All scaffolds present."
+else
+  echo "    [!] Missing ${#MISSING[@]} scaffold(s) — partial template?"
+  for m in "${MISSING[@]}"; do echo "      - $m"; done
+  echo "    Re-clone or re-pull the claude-workflow template to recover."
+fi
+
+# -----------------------------------------------------------------------------
+# Initialize an empty `bin/init.sh` if the project doesn't have one.
+# Required by the session-opener hook's "Step 3 — Smoke test" suggestion.
+# -----------------------------------------------------------------------------
+if [[ ! -e "bin/init.sh" ]]; then
+  echo
+  read -rp "Create a stub bin/init.sh (boots dev server + runs smoke)? [Y/n]: " CREATE_INIT
+  if [[ "$CREATE_INIT" != "n" && "$CREATE_INIT" != "N" ]]; then
+    cat > bin/init.sh <<'EOF'
+#!/usr/bin/env bash
+# bin/init.sh — boot the dev environment and run an end-to-end smoke check.
+# Called by the session-opener hook's "Step 3". Fill in for your project.
+set -euo pipefail
+
+echo "==> [stub] Boot dev server here, e.g.:"
+echo "    npm run dev &  # or: cargo run, or: docker compose up -d"
+echo
+echo "==> [stub] Run smoke check here, e.g.:"
+echo "    curl -fsSL http://localhost:3000/health"
+echo
+echo "Edit bin/init.sh and remove this stub when ready."
+EOF
+    chmod +x bin/init.sh
+    echo "    Created bin/init.sh (stub) — fill in for your project."
+  fi
+fi
+
 echo
 echo "==> Done."
 echo
 echo "Next steps:"
-echo "  1. Review CLAUDE.md — fill in 'Architecture in one paragraph' and any remaining commands"
-echo "  2. Open Claude Code: claude"
-echo "  3. Spawn the team: /onboard-team"
+echo "  1. Review CLAUDE.md — fill in 'Architecture in one paragraph' and any remaining commands."
+echo "  2. Review auto-mode.yaml + sandbox.json — adjust trusted_domains and block_rules for your stack."
+echo "  3. Review .mcp.json — keep Playwright + GitHub, add product-specific MCPs as needed."
+echo "  4. Populate memory/PROGRESS.md with the first goal."
+echo "  5. Add the project's first eval task at evals/tasks/<domain>/<name>.yaml (see evals/README.md)."
+echo "  6. Open Claude Code: claude"
+echo "  7. Spawn the team: /onboard-team"

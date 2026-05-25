@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# auto-clean-worktree.sh — Hook 7 of 7
+# auto-clean-worktree.sh — Hook 7 of 12
 #
 # PostToolUse / Bash hook: after a successful `gh pr merge`, find any
 # `.worktrees/` entry whose checked-out branch matches the merged PR's
