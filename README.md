@@ -1,27 +1,17 @@
 # claude-workflow
 
-Opinionated boilerplate for starting a new project with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Drop this into a fresh repo and you immediately have:
+A Claude Code multi-agent engineering team — ready to drop into any project.
 
-- An **8-agent team topology** — Team Lead orchestrates 7 specialists (PM, Triage, Dev, QA, Code Reviewer, DevOps, Designer) + 2 on-demand specialists (Research, Citation) so you can set goals and step away while the team executes.
-- A **CLAUDE.md** that encodes operating posture, coding discipline, and the PRD → Design Doc → Contract → code workflow gate.
-- An **ETHOS** — three principles that shape every decision: *Boil the Lake · Search Before Building · User Sovereignty* (adapted from [garrytan/gstack](https://github.com/garrytan/gstack)).
-- **Slash commands** for the moments that matter: `/onboard-team`, `/office-hours`, `/plan-review`, `/investigate`, `/ship`, `/retro`, `/heartbeat`, `/eval`, `/swarm`, `/research`.
-- **Shared skills** that codify cross-agent contracts: label discipline, role boundaries, worktree hygiene, bug-filing protocol, contract negotiation, harness mapping, think-tool wiring, tool design, safety layering, swarm dispatch, research burst, eval running, quality monitoring.
-- An **eval + observability layer** — three grader types (code/LLM/state), pass@k + pass^k reporting, continuous prod quality, cross-platform equivalence, cohort segmentation. Encodes Anthropic's published eval discipline.
-- A **layered safety model** — OS sandbox (`sandbox.json`) + semantic auto-mode classifier (`auto-mode.yaml`) + 12 hooks. 5 enforce PR discipline; 5 prevent the failure modes Anthropic called out in its postmortems.
-- **MCP wiring** — Playwright (browser verification) + GitHub MCP by default. `.mcpb` packaging for project-local MCP servers.
-- A **generic SDLC** — branch naming, PR conventions, GitHub label scheme.
+You set a goal. The team executes: PM writes the spec, Dev builds it, QA verifies it, Code Reviewer merges it, DevOps ships it. **GitHub issues and PRs are the single source of truth** — agents coordinate through durable GitHub state, not ephemeral chat.
 
-The architecture is derived from the [full Anthropic engineering blog corpus](https://www.anthropic.com/engineering) — every pattern below cites the post that motivated it.
-
-It is deliberately small and free of project-specific content. Customize once, ship many.
+Derived from the [full Anthropic engineering blog corpus](https://www.anthropic.com/engineering). Deliberately small and free of project-specific content. Customize once, ship many.
 
 ---
 
 ## Quick start
 
 ```bash
-# 1. Clone into a new project, or copy the .claude/ + top-level docs into an existing one
+# 1. Clone into a new project (or copy .claude/ + top-level docs into an existing one)
 git clone https://github.com/cvsubs74/claude-workflow.git my-new-product
 cd my-new-product
 rm -rf .git && git init -b main
@@ -30,36 +20,307 @@ rm -rf .git && git init -b main
 ./bin/init-project.sh
 ```
 
-`bin/init-project.sh` fills in `{{PROJECT_NAME}}` / `{{GITHUB_REPO}}` / `{{DEFAULT_BRANCH}}` / test+lint+dev+deploy commands across CLAUDE.md and the agent files, sanity-checks all 30+ scaffolds shipped, offers to bootstrap GitHub labels, and creates a stub `bin/init.sh` (so the session-opener hook has something to suggest). ~30 seconds of typing.
+`bin/init-project.sh` fills in `{{PROJECT_NAME}}` / `{{GITHUB_REPO}}` / `{{DEFAULT_BRANCH}}` / test+lint+dev+deploy commands across CLAUDE.md and the agent files, sanity-checks all 30+ scaffolds, offers to bootstrap GitHub labels, and creates a stub `bin/init.sh`. ~30 seconds of typing.
 
 ```bash
 # 3. Open Claude Code and spawn the team
 claude
-```
-
-Then, your first slash command:
-
-```
 /onboard-team
 ```
 
-Spawns the Team Lead + 7 always-on specialists. The Team Lead reads `CLAUDE.md`, anchors on `memory/PROGRESS.md` (which is empty), and asks you for the first goal.
+Spawns Team Lead + 7 always-on specialists. Team Lead reads `CLAUDE.md`, anchors on `memory/PROGRESS.md`, and asks for the first goal.
 
-### Your first goal — two natural patterns
+### Your first goal
 
-| If you have a **fuzzy product idea** | If you have a **concrete product spec** |
+| If you have a **fuzzy idea** | If you have a **concrete spec** |
 |---|---|
-| `/office-hours` first — six forcing questions surface the real problem before anyone writes a PRD | Brief the Team Lead directly with the spec; they'll route to PM to write the PRD, then PM/Designer + Dev + QA negotiate the first `docs/contracts/<N>-<slug>.md` |
+| `/office-hours` first — six forcing questions surface the real problem before anyone writes a PRD | Brief the Team Lead directly; they route to PM for the PRD, then PM/Designer + Dev + QA negotiate `docs/contracts/<N>-<slug>.md` |
 
-### Optional: validate the system end-to-end before committing to a real feature
+### Validate the system before committing to a real feature
 
 ```
 /heartbeat
 ```
 
-Ships a one-digit canary change through the full PM → Dev → CR pipeline and confirms all four exit-state criteria pass on the new repo. ~2 minutes; emits PASS / PARTIAL / FAIL.
+Ships a one-digit canary change through PM → Dev → CR and confirms all four exit-state criteria pass. ~2 minutes; emits PASS / PARTIAL / FAIL.
 
 **TL;DR**: `./bin/init-project.sh` → `claude` → `/onboard-team`.
+
+---
+
+## Agent topology
+
+Ten agents total: **8 always-on** (Team Lead + 7 specialists) plus **2 on-demand** (Research, Citation).
+
+```mermaid
+graph TD
+    HO["Human Operator"] --> TL["Team Lead\nplan · delegate · track · report"]
+
+    TL --> PM["PM Agent\nbacklog · PRDs · priority"]
+    TL --> TR["Triage Agent\nbug intake · root-cause"]
+    TL --> DV["Dev Agent\nbranches · code · PRs"]
+    TL --> QA["QA Agent\nverification · resolved"]
+    TL --> CR["Code Reviewer\nreview · merge"]
+    TL --> DO["DevOps Agent\ndeploy · rollback"]
+    TL --> DS["Designer Agent\nUX gate · accessibility"]
+
+    PM -.->|"on demand via /research"| RA["Research Agent\nlead-worker orchestrator"]
+    RA --> CA["Citation Agent\nclaim verification"]
+
+    style TL fill:#dbeafe,stroke:#3b82f6
+    style PM fill:#fef3c7,stroke:#f59e0b
+    style TR fill:#fef3c7,stroke:#f59e0b
+    style DV fill:#fef3c7,stroke:#f59e0b
+    style QA fill:#fef3c7,stroke:#f59e0b
+    style CR fill:#fef3c7,stroke:#f59e0b
+    style DO fill:#fef3c7,stroke:#f59e0b
+    style DS fill:#fef3c7,stroke:#f59e0b
+    style RA fill:#f3e8ff,stroke:#a855f7,stroke-dasharray:5
+    style CA fill:#f3e8ff,stroke:#a855f7,stroke-dasharray:5
+```
+
+| Agent | Role |
+|---|---|
+| **Team Lead** | Goal decomposition, cross-agent delegation, status synthesis. Owns no labels. Not a specialist. |
+| **PM** | Backlog triage, PRDs, slicing features into issues, `prioritized` + `priority:*` labels. |
+| **Triage** | Operator bug intake, 60–90s root-cause hypothesis, post-merge operator verification. |
+| **Dev** | Code, branches, PRs, design docs, `in-progress` + `in-review` labels. |
+| **QA** | Bug discovery, post-merge verification (two-pass), `resolved` label, test coverage. |
+| **Code Reviewer** | PR review verdict, squash-merge via `bin/merge-pr.sh`, cross-flow contract enforcement. |
+| **DevOps** | Deploys, secrets, infrastructure health checks, rollback. |
+| **Designer** | PRD UX review (mockups + open questions), frontend PR visual quality gate, accessibility. |
+| **Research** | On-demand lead-worker for breadth-first discovery (spawned via `/research`). |
+| **Citation** | Verifies research claims to source; emits READY_TO_SHIP or NEEDS_REVISION. |
+
+Each role's full contract lives in `.claude/agents/<role>-agent.md`. You can delete agents you don't need — the team degrades gracefully.
+
+---
+
+## How agents communicate
+
+Agents communicate through two mechanisms — and crucially, **all durable coordination happens through GitHub**, not through chat history that disappears.
+
+### Mechanism 1: spawn a fresh specialist
+
+```
+Team Lead calls Agent(subagent_type: "pm")
+  → a new PM Agent session starts
+  → reads its agent file + memory + the GitHub issue
+  → does its work
+  → writes output to a file / GitHub comment
+  → exits
+```
+
+### Mechanism 2: send a message to a running specialist
+
+```
+Team Lead calls SendMessage(agent_id: "dev-session-42", message: "please address CR feedback")
+  → the running Dev session receives the message mid-task
+  → pivots without losing its current context
+```
+
+### Why GitHub is the coordination layer
+
+Each agent session starts cold — it has no memory of previous sessions' chat. The team stays coherent because every status transition, decision, and handoff is recorded in GitHub:
+
+```mermaid
+graph LR
+    A["Agent A\n(session ends)"] -->|"files issue / posts comment\n/ applies label"| GH["GitHub\nissues · PRs · labels"]
+    GH -->|"Agent B reads issue\non cold start"| B["Agent B\n(new session)"]
+    B -->|"updates label / posts verdict"| GH
+
+    style GH fill:#24292e,color:#ffffff,stroke:#57606a
+```
+
+This means:
+- A PM session that triages 10 issues can end. When Dev picks up work next session, it reads the `prioritized` label from GitHub — no handoff message needed.
+- A Code Reviewer that posts "CHANGES REQUESTED" on a PR captures that verdict durably. Dev reads it on its next session without needing anyone to repeat it.
+- A DevOps deploy failure that pings the issue creates a permanent record the operator can read hours later.
+
+**Rule:** Plans live in operator messages (ephemeral). Status lives on issues, PRs, and labels (durable). Never create parallel tracking surfaces.
+
+---
+
+## How agents coordinate on GitHub issues
+
+Issues flow through a predictable label lifecycle. Each label transition has a single owner.
+
+### Feature / enhancement lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> backlog : Anyone files\nenhancement+backlog
+
+    backlog --> prioritized : PM triages\nadds priority:high/medium/low
+
+    prioritized --> in_progress : Dev picks up\n(applies in-progress)
+
+    in_progress --> in_review : Dev opens PR\n(applies in-review)
+
+    in_review --> merged : Code Reviewer\nLGTM + squash-merge
+
+    merged --> resolved : QA runs two-pass\nverification
+
+    resolved --> [*]
+
+    backlog --> [*] : PM rejects
+```
+
+### Bug fast-path (skips PM triage)
+
+```mermaid
+stateDiagram-v2
+    [*] --> bug_filed : Operator reports / QA / Triage\nfiles bug label
+
+    bug_filed --> in_progress : Dev picks up\n(NO backlog step)
+
+    in_progress --> in_review : Dev opens PR
+
+    in_review --> merged : Code Reviewer merges
+
+    merged --> resolved : QA two-pass verify
+
+    resolved --> [*]
+```
+
+### Label ownership — who can apply what
+
+| Label | Owner | Applied when |
+|---|---|---|
+| `bug` | QA / Triage / Dev / Operator | Regression or breakage confirmed. Skips backlog. |
+| `enhancement` | Anyone | New feature, refactor, cleanup, tooling. |
+| `backlog` | Filer | Default state for any new enhancement. Removed only by PM. |
+| `prioritized` | **PM only** | PM triaged and approved for Dev pickup. Always paired with `priority:*`. |
+| `priority:high` | **PM only** | Blocks operator workflow or required precondition. |
+| `priority:medium` | **PM only** | Clear value, no active blocker. Safe default. |
+| `priority:low` | **PM only** | Cleanup, polish, nice-to-have. |
+| `in-progress` | **Dev only** | Dev started work. Apply on issue pickup. |
+| `in-review` | **Dev only** | PR open, awaiting Code Reviewer. Hook-enforced. |
+| `resolved` | **QA only** | QA verified post-merge (two consecutive passes). Terminal state. |
+
+Four hard rules:
+1. Bugs NEVER enter the backlog.
+2. Only PM applies `prioritized` + `priority:*`.
+3. Only QA applies `resolved`.
+4. Only Dev applies `in-progress` + `in-review`.
+
+---
+
+## The operating model
+
+### Planner / Generator / Evaluator
+
+The 8-agent team maps directly onto the [Anthropic harness pattern](https://www.anthropic.com/engineering/harness-design-long-running-apps) — three roles with file-based handoffs between every pair:
+
+```mermaid
+graph LR
+    P["Planner\nPM + Designer"] -->|"PRD · Design Doc"| G["Generator\nDev"]
+    G -->|"Code + Contract"| E["Evaluator\nQA + Code Reviewer"]
+    E -->|"Verdict + resolved"| done["Shipped"]
+
+    TR["Triage"] -.->|"well-formed\nbug issue"| P
+    DO["DevOps"] -.->|"deploy after\nverdict"| done
+
+    style P fill:#fef3c7,stroke:#f59e0b
+    style G fill:#dbeafe,stroke:#3b82f6
+    style E fill:#dcfce7,stroke:#22c55e
+    style TR fill:#f3e8ff,stroke:#a855f7
+    style DO fill:#f3e8ff,stroke:#a855f7
+```
+
+Every handoff is a named file artifact — no invisible context passing:
+
+| Handoff | Artifact | Location |
+|---|---|---|
+| Planner → Generator | PRD + Design Doc | `docs/prd/` · `docs/design/` |
+| Generator ↔ Evaluator | Sprint contract | `docs/contracts/<N>-<slug>.md` |
+| Generator → Evaluator | Code on branch | PR diff |
+| Evaluator verdict | PR comment + label | `resolved` on issue |
+
+### Feature pipeline (end to end)
+
+```mermaid
+sequenceDiagram
+    actor Op as Operator
+    participant TL as Team Lead
+    participant PM as PM Agent
+    participant DS as Designer
+    participant DV as Dev Agent
+    participant CR as Code Reviewer
+    participant QA as QA Agent
+    participant DO as DevOps
+
+    Op->>TL: "build X"
+    TL->>PM: write PRD
+    PM-->>TL: docs/prd/PRD-X.md
+
+    TL->>DS: UX review
+    DS-->>TL: docs/design/DESIGN-X.md + open Qs
+
+    TL->>DV: implement
+    DV->>CR: negotiate contract (docs/contracts/)
+    DV->>QA: negotiate contract
+    Note over DV,QA: contract signed before code
+    DV-->>TL: PR opened, in-review label
+
+    CR->>DV: LGTM / CHANGES REQUESTED
+    CR-->>TL: squash-merged
+
+    DO-->>TL: deployed
+
+    QA-->>TL: two-pass verified, resolved label
+    TL-->>Op: done — issue closed, resolved
+```
+
+### Bug pipeline (fast-path)
+
+```mermaid
+sequenceDiagram
+    actor Op as Operator
+    participant TR as Triage
+    participant DV as Dev Agent
+    participant CR as Code Reviewer
+    participant DO as DevOps
+    participant QA as QA Agent
+
+    Op->>TR: "something's broken"
+    TR-->>Op: 60–90s root-cause hypothesis
+    TR->>DV: bug issue filed (skips PM backlog)
+    DV-->>CR: PR opened
+    CR-->>DO: LGTM + merged
+    DO-->>Op: deployed
+    QA-->>Op: two-pass verified, resolved
+```
+
+### Gate rules — when PRD + Design Doc are required
+
+| Change type | PRD required | Design Doc required | Contract required |
+|---|---|---|---|
+| New user-facing feature | Yes | Yes | Yes |
+| Refactor with behavior change | Yes | Yes | Yes |
+| Refactor, no behavior change | No | Optional | Optional |
+| Bug fix | No | No | No |
+| Chore / tooling / dep upgrade | No | No | No |
+| Hotfix | No | No | No |
+
+Skipping the gate without explicit operator override blocks the PR at review.
+
+---
+
+## Slash commands
+
+| Command | What it does |
+|---|---|
+| `/onboard-team` | Spawn Team Lead + 7 always-on specialists |
+| `/office-hours` | Six forcing questions before writing code — surfaces the real problem |
+| `/plan-review` | Run CEO / engineering / design review lenses on a plan or design doc |
+| `/investigate` | Systematic root-cause debugging. No fixes without an investigation. |
+| `/ship` | Sync, run tests, push, open a PR (manual fallback for Dev/CR loop) |
+| `/retro` | Weekly retro — shipping streaks, test health, growth opportunities |
+| `/heartbeat` | Live SDLC dry-run: canary through PM → Dev → CR; emits PASS/PARTIAL/FAIL |
+| `/eval` | Run eval suite; report per-cohort pass rate + regressions |
+| `/swarm <oracle> <N>` | Dispatch N parallel Dev sessions for partitionable bulk work |
+| `/research <question>` | Spawn Research Agent (lead-worker) for breadth-first discovery |
 
 ---
 
@@ -69,129 +330,53 @@ Ships a one-digit canary change through the full PM → Dev → CR pipeline and 
 .
 ├── CLAUDE.md                     # Operating posture, coding discipline, common commands
 ├── ETHOS.md                      # Boil the Lake · Search Before Building · User Sovereignty
-├── SDLC.md                       # Generic PR workflow, branch naming, label scheme
-├── README.md                     # You are here
-├── LICENSE                       # MIT
-├── .gitignore
+├── SDLC.md                       # Branch naming, PR workflow, label scheme
 ├── .mcp.json                     # Default MCP wiring (Playwright + GitHub)
-├── auto-mode.yaml                # Semantic classifier policy (environment, block_rules, allow_exceptions)
-├── sandbox.json                  # OS-level isolation policy (FS allowlist, network allowlist, scoped git creds)
+├── auto-mode.yaml                # Semantic classifier policy
+├── sandbox.json                  # OS-level isolation policy (FS + network allowlist)
 ├── .claude/
-│   ├── settings.json             # Hooks + permission allowlist
-│   ├── settings.local.json.template
 │   ├── agents/                   # 10 role contracts (8 always-on + 2 on-demand)
-│   │   ├── team-lead-agent.md · pm-agent.md · triage-agent.md
-│   │   ├── dev-agent.md · qa-agent.md · code-reviewer-agent.md
-│   │   ├── devops-agent.md · designer-agent.md
-│   │   ├── research-agent.md     # NEW — lead-worker for /research
-│   │   └── citation-agent.md     # NEW — verification pass for research output
-│   ├── skills/                   # 14 cross-agent skills
-│   │   ├── label-discipline/, system-role-boundaries/, file-bug-issue/
-│   │   ├── worktree-management/, skill-maintenance/
-│   │   ├── harness-mapping/      # P/G/E mapping onto our 8-agent topology
-│   │   ├── contract-negotiation/ # Generator ↔ Evaluator sprint contract
-│   │   ├── think-tool-wiring/    # Pause-to-reason discipline
-│   │   ├── tool-design/          # 7 rules from Writing tools for agents
-│   │   ├── safety-layering/      # Sandbox + classifier + hooks composition
-│   │   ├── swarm-dispatch/       # Partitionable bulk work via git lockfiles
-│   │   ├── research-burst/       # Lead-worker discovery pattern
-│   │   ├── eval-runner/          # Add and run agent/product evals
-│   │   └── quality-monitor/      # Continuous prod quality + regression triage
+│   ├── skills/                   # 14 cross-agent skills (label-discipline, worktree-management, …)
 │   ├── commands/                 # 10 slash commands
-│   │   ├── onboard-team · office-hours · plan-review · investigate
-│   │   ├── ship · retro · heartbeat
-│   │   ├── eval · swarm · research
 │   └── hooks/                    # 12 enforcement hooks
 │       ├── (5 PR-discipline + 1 worktree cleanup + 1 doc check)
-│       ├── workaround-audit.sh   # NEW — postmortem-prevention
-│       ├── system-prompt-audit.sh# NEW — audit trail for prompt edits
-│       ├── verification-gate.sh  # NEW — refuse "done" without verification
-│       ├── session-opener.sh     # NEW — 3-step session opener
-│       └── deploy-reminder.sh    # NEW — cohort/soak reminder on deploy prompts
+│       ├── workaround-audit.sh   # postmortem-prevention
+│       ├── system-prompt-audit.sh# audit trail for prompt edits
+│       ├── verification-gate.sh  # refuse "done" without verification
+│       ├── session-opener.sh     # 3-step session opener
+│       └── deploy-reminder.sh    # cohort/soak reminder on deploy prompts
 ├── docs/
-│   ├── ARCHITECTURE.md.template
-│   ├── tool-design.md            # NEW — long-form 7 tool design rules
 │   ├── prd/, design/             # Where PRDs and design docs live
-│   ├── contracts/                # NEW — Generator ↔ Evaluator sprint contracts
-│   │   ├── README.md
-│   │   └── _template.md
-│   └── playbooks/                # Per-agent scratchpads
-├── memory/                       # NEW — durable agent state
-│   ├── PROGRESS.md · DECISIONS.md · NOTES.md
-│   └── README.md
-├── evals/                        # NEW — agent and product quality measurement
-│   ├── tasks/, graders/, rubrics/, harness/, results/
-│   ├── prod_monitor/             # Continuous quality, cross-platform eq, cohort segmentation
-│   └── README.md
-├── tools/                        # NEW — in-repo code-exec helpers (filesystem-as-tool-registry)
-├── mcp/                          # NEW — project-local MCP servers
-│   ├── servers/                  # Each shippable as .mcpb
-│   ├── Makefile                  # mcpb init / mcpb pack
-│   └── README.md
+│   ├── contracts/                # Generator ↔ Evaluator sprint contracts
+│   └── playbooks/                # Per-agent running notebooks
+├── memory/                       # Durable agent state (PROGRESS · DECISIONS · NOTES)
+├── evals/                        # Agent and product quality measurement
+│   └── prod_monitor/             # Continuous quality, cross-platform eq, cohort segmentation
+├── mcp/servers/                  # Project-local MCP servers (.mcpb packaged)
 └── bin/
-    ├── init-project.sh           # Interactive setup script (scaffolds bin/init.sh too)
-    ├── gh-scoped-cred.sh         # NEW — scoped git credential helper for the sandbox
-    └── (bootstrap-labels, ci-status, merge-pr, team-status)
+    ├── init-project.sh           # Interactive setup script
+    ├── merge-pr.sh               # REQUIRED for Code Reviewer merges (handles worktree cleanup)
+    └── (bootstrap-labels, ci-status, gh-scoped-cred, team-status)
 ```
 
----
+**Safety model (three layers):**
+- `sandbox.json` — OS-level filesystem + network isolation
+- `auto-mode.yaml` — semantic classifier: blocks destructive ops in auto mode
+- 12 hooks — PR discipline (5), postmortem-prevention (5), worktree cleanup (1), doc check (1)
 
-## The 8-agent team
-
-```
-                    Human Operator
-                          │
-                          ▼
-                ┌──────────────────┐
-                │  Team Lead Agent │   ← lead session (no specialist work)
-                │  plan · delegate · track · report │
-                └──────────────────┘
-                          │
-   ┌──────┬──────┬──────┬──────┬──────────┬────────┬──────────┐
-   ▼      ▼      ▼      ▼      ▼          ▼        ▼          ▼
-  PM   Triage  Dev    QA   Code Rev   DevOps   Designer
-```
-
-| Agent | Owns |
-|---|---|
-| **Team Lead** | Goal decomposition, cross-agent coordination, status synthesis. Not a specialist. |
-| **PM** | Backlog triage, PRDs, slicing, `prioritized` + `priority:*` labels. |
-| **Triage** | Operator bug intake, 60–90s root-cause hypothesis, post-merge operator verification. |
-| **Dev** | Code, branches, PRs, design docs. |
-| **QA** | Bug discovery, post-merge verification, `resolved` label, test coverage. |
-| **Code Reviewer** | PR review, merge, cross-flow contract enforcement. |
-| **DevOps** | Deploys, secrets, infrastructure health checks, rollback. |
-| **Designer** | PRD UX review (mockups + open Qs), frontend PR visual quality gate, accessibility. |
-
-Each role's full contract lives in `.claude/agents/<role>-agent.md`. You can delete any agent you don't need — the team degrades gracefully.
-
----
-
-## The sprint
-
-Inspired by gstack's sprint methodology — every change flows through these stages:
-
-> **Think → Plan → Build → Review → Test → Ship → Reflect**
-
-- **Think** — `/office-hours` forces assumptions into the open before you write code. `/research` for breadth-first discovery.
-- **Plan** — PRD (PM) + Design Doc (Dev or Designer) live in `docs/prd/` and `docs/design/`. `/plan-review` runs CEO/eng/design lenses.
-- **Contract** — Generator (Dev) and Evaluators (QA + CR) negotiate a sprint contract under `docs/contracts/<N>-<slug>.md` before code. See `.claude/skills/contract-negotiation/SKILL.md`.
-- **Build** — Dev picks up `prioritized` issues; works in `.worktrees/<task-id>` isolated from main. `/swarm` for partitionable bulk work.
-- **Review** — Code Reviewer reviews against contract, merges. Designer gates frontend PRs.
-- **Test** — QA verifies post-merge against the contract + archetype scenarios; applies `resolved`. `/eval` against the changed cohort.
-- **Ship** — DevOps deploys; `/ship` opens the PR if you're doing this manually. `deploy-reminder` hook fires the cohort/soak checklist.
-- **Reflect** — `/retro` summarizes shipping streaks, test health, growth opportunities. `quality-monitor` runs continuously between retros.
+**Eval layer:**
+Three grader types (code / LLM / state), pass@k + pass^k reporting, continuous prod quality monitoring, cross-platform equivalence, cohort segmentation — encoding Anthropic's published eval discipline.
 
 ---
 
 ## Customizing for your project
 
-1. **Replace placeholders.** Search the repo for `{{PROJECT_NAME}}`, `{{GITHUB_REPO}}`, `{{PRIMARY_LANGUAGE}}`, `{{DEPLOY_TARGET}}`. The `bin/init-project.sh` script does this interactively.
-2. **Edit CLAUDE.md.** Add a one-paragraph "architecture in one paragraph" specific to your stack. Add your real `Common commands` block (test, dev server, deploy).
-3. **Edit SDLC.md.** Adjust label scheme if your team uses different labels. Pin your branch naming convention.
-4. **Trim agents you don't need.** A solo project might not need a separate Designer or DevOps agent — delete those files.
-5. **Add project-specific shared skills.** As patterns emerge (deploy chain, tenant routing, etc.), add them under `.claude/skills/<name>/SKILL.md` and reference from agent files.
-6. **Let agents fill their playbooks.** `docs/playbooks/<role>.md` is each agent's running notebook for project-specific knowledge — test surfaces for QA, deploy quirks for DevOps, code conventions for Dev. Agents read their own playbook on cold-start and append when they learn something worth keeping.
+1. **Replace placeholders.** `./bin/init-project.sh` does this interactively — `{{PROJECT_NAME}}`, `{{GITHUB_REPO}}`, `{{DEFAULT_BRANCH}}`, test/lint/dev/deploy commands.
+2. **Edit `CLAUDE.md`.** Add a one-paragraph architecture summary and your real `Common commands` block.
+3. **Edit `SDLC.md`.** Adjust the label scheme and branch naming convention to match your team.
+4. **Trim agents you don't need.** Solo project? Delete `designer-agent.md` and `devops-agent.md`. The team degrades gracefully.
+5. **Add project skills.** When the same multi-step procedure appears in 2+ playbooks or happens 3+ times the same way, lift it into `.claude/skills/<name>/SKILL.md`.
+6. **Let agents fill playbooks.** `docs/playbooks/<role>.md` is each agent's running notebook — gotchas, env quirks, last-known-good commands. Agents append on every session; you read to understand history.
 
 ---
 
