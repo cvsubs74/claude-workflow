@@ -378,13 +378,4 @@ Three grader types (code / LLM / state), pass@k + pass^k reporting, continuous p
 5. **Add project skills.** When the same multi-step procedure appears in 2+ playbooks or happens 3+ times the same way, lift it into `.claude/skills/<name>/SKILL.md`.
 6. **Let agents fill playbooks.** `docs/playbooks/<role>.md` is each agent's running notebook — gotchas, env quirks, last-known-good commands. Agents append on every session; you read to understand history.
 
----
-
-## Credits
-
-This boilerplate combines patterns from:
-
-- **regulatory_intelligence** — the 8-agent team topology, label discipline, system role boundaries, cold-start anchor protocol, worktree hygiene.
-- **[garrytan/gstack](https://github.com/garrytan/gstack)** — the builder ethos (Boil the Lake / Search Before Building / User Sovereignty), the sprint methodology, the office-hours and investigate skill patterns.
-
 MIT licensed. Fork it, edit it, make it yours.
