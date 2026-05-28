@@ -54,18 +54,18 @@ Ten agents total: **8 always-on** (Team Lead + 7 specialists) plus **2 on-demand
 
 ```mermaid
 graph TD
-    HO["Human Operator"] --> TL["Team Lead\nplan · delegate · track · report"]
+    HO["Human Operator"] --> TL["Team Lead<br/>plan · delegate · track · report"]
 
-    TL --> PM["PM Agent\nbacklog · PRDs · priority"]
-    TL --> TR["Triage Agent\nbug intake · root-cause"]
-    TL --> DV["Dev Agent\nbranches · code · PRs"]
-    TL --> QA["QA Agent\nverification · resolved"]
-    TL --> CR["Code Reviewer\nreview · merge"]
-    TL --> DO["DevOps Agent\ndeploy · rollback"]
-    TL --> DS["Designer Agent\nUX gate · accessibility"]
+    TL --> PM["PM Agent<br/>backlog · PRDs · priority"]
+    TL --> TR["Triage Agent<br/>bug intake · root-cause"]
+    TL --> DV["Dev Agent<br/>branches · code · PRs"]
+    TL --> QA["QA Agent<br/>verification · resolved"]
+    TL --> CR["Code Reviewer<br/>review · merge"]
+    TL --> DO["DevOps Agent<br/>deploy · rollback"]
+    TL --> DS["Designer Agent<br/>UX gate · accessibility"]
 
-    PM -.->|"on demand via /research"| RA["Research Agent\nlead-worker orchestrator"]
-    RA --> CA["Citation Agent\nclaim verification"]
+    PM -.->|"on demand via /research"| RA["Research Agent<br/>lead-worker orchestrator"]
+    RA --> CA["Citation Agent<br/>claim verification"]
 
     style TL fill:#dbeafe,stroke:#3b82f6
     style PM fill:#fef3c7,stroke:#f59e0b
@@ -125,8 +125,8 @@ Each agent session starts cold — it has no memory of previous sessions' chat. 
 
 ```mermaid
 graph LR
-    A["Agent A\n(session ends)"] -->|"files issue / posts comment\n/ applies label"| GH["GitHub\nissues · PRs · labels"]
-    GH -->|"Agent B reads issue\non cold start"| B["Agent B\n(new session)"]
+    A["Agent A<br/>(session ends)"] -->|"files issue / posts comment<br/>/ applies label"| GH["GitHub<br/>issues · PRs · labels"]
+    GH -->|"Agent B reads issue<br/>on cold start"| B["Agent B<br/>(new session)"]
     B -->|"updates label / posts verdict"| GH
 
     style GH fill:#24292e,color:#ffffff,stroke:#57606a
@@ -149,17 +149,17 @@ Issues flow through a predictable label lifecycle. Each label transition has a s
 
 ```mermaid
 stateDiagram-v2
-    [*] --> backlog : Anyone files\nenhancement+backlog
+    [*] --> backlog : Anyone files<br/>enhancement+backlog
 
-    backlog --> prioritized : PM triages\nadds priority:high/medium/low
+    backlog --> prioritized : PM triages<br/>adds priority:high/medium/low
 
-    prioritized --> in_progress : Dev picks up\n(applies in-progress)
+    prioritized --> in_progress : Dev picks up<br/>(applies in-progress)
 
-    in_progress --> in_review : Dev opens PR\n(applies in-review)
+    in_progress --> in_review : Dev opens PR<br/>(applies in-review)
 
-    in_review --> merged : Code Reviewer\nLGTM + squash-merge
+    in_review --> merged : Code Reviewer<br/>LGTM + squash-merge
 
-    merged --> resolved : QA runs two-pass\nverification
+    merged --> resolved : QA runs two-pass<br/>verification
 
     resolved --> [*]
 
@@ -170,9 +170,9 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    [*] --> bug_filed : Operator reports / QA / Triage\nfiles bug label
+    [*] --> bug_filed : Operator reports / QA / Triage<br/>files bug label
 
-    bug_filed --> in_progress : Dev picks up\n(NO backlog step)
+    bug_filed --> in_progress : Dev picks up<br/>(NO backlog step)
 
     in_progress --> in_review : Dev opens PR
 
@@ -214,12 +214,12 @@ The 8-agent team maps directly onto the [Anthropic harness pattern](https://www.
 
 ```mermaid
 graph LR
-    P["Planner\nPM + Designer"] -->|"PRD · Design Doc"| G["Generator\nDev"]
-    G -->|"Code + Contract"| E["Evaluator\nQA + Code Reviewer"]
+    P["Planner<br/>PM + Designer"] -->|"PRD · Design Doc"| G["Generator<br/>Dev"]
+    G -->|"Code + Contract"| E["Evaluator<br/>QA + Code Reviewer"]
     E -->|"Verdict + resolved"| done["Shipped"]
 
-    TR["Triage"] -.->|"well-formed\nbug issue"| P
-    DO["DevOps"] -.->|"deploy after\nverdict"| done
+    TR["Triage"] -.->|"well-formed<br/>bug issue"| P
+    DO["DevOps"] -.->|"deploy after<br/>verdict"| done
 
     style P fill:#fef3c7,stroke:#f59e0b
     style G fill:#dbeafe,stroke:#3b82f6
