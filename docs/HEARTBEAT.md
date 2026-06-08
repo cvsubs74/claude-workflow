@@ -6,4 +6,4 @@ The change is intentionally trivial — one digit — so the pipeline test is ne
 
 <!-- DO NOT manually edit the counter line. /heartbeat owns it. -->
 
-Run count: 3
+Run count: 4
