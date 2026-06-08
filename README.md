@@ -339,6 +339,7 @@ Skipping the gate without explicit operator override blocks the PR at review.
 ├── CLAUDE.md                     # Operating posture, coding discipline, common commands
 ├── ETHOS.md                      # Boil the Lake · Search Before Building · User Sovereignty
 ├── SDLC.md                       # Branch naming, PR workflow, label scheme
+├── CONTRIBUTING.md               # How to propose changes to the template itself
 ├── .mcp.json                     # Default MCP wiring (Playwright + GitHub)
 ├── auto-mode.yaml                # Semantic classifier policy
 ├── sandbox.json                  # OS-level isolation policy (FS + network allowlist)
@@ -354,17 +355,24 @@ Skipping the gate without explicit operator override blocks the PR at review.
 │       ├── session-opener.sh     # 3-step session opener
 │       └── deploy-reminder.sh    # cohort/soak reminder on deploy prompts
 ├── docs/
+│   ├── ARCHITECTURE.md           # System shape + change log (cold-start reading)
+│   ├── tool-design.md            # Seven rules for agent-facing tools
+│   ├── HEARTBEAT.md              # /heartbeat exit-state criteria
 │   ├── prd/, design/             # Where PRDs and design docs live
 │   ├── contracts/                # Generator ↔ Evaluator sprint contracts
 │   └── playbooks/                # Per-agent running notebooks
 ├── memory/                       # Durable agent state (PROGRESS · DECISIONS · NOTES)
 ├── evals/                        # Agent and product quality measurement
+│   ├── graders/                  # code / LLM / state graders
+│   ├── harness/ tasks/ rubrics/ results/   # runner, task specs, LLM rubrics, run output
 │   └── prod_monitor/             # Continuous quality, cross-platform eq, cohort segmentation
 ├── mcp/servers/                  # Project-local MCP servers (.mcpb packaged)
+├── tools/                        # Filesystem-as-tool-registry pattern
+├── tests/                        # Hook + e2e suite (bash tests/run.sh; CI-gated)
 └── bin/
     ├── init-project.sh           # Interactive setup script
     ├── merge-pr.sh               # REQUIRED for Code Reviewer merges (handles worktree cleanup)
-    └── (bootstrap-labels, ci-status, gh-scoped-cred, team-status)
+    └── (bootstrap-labels, ci-status, gh-scoped-cred, team-status, hello)
 ```
 
 **Safety model (three layers):**
