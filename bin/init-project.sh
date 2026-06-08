@@ -113,6 +113,33 @@ if [[ -f ".claude/settings.local.json.template" && ! -f ".claude/settings.local.
   fi
 fi
 
+# -----------------------------------------------------------------------------
+# Wire up the GitHub remote. After `rm -rf .git && git init`, there is no
+# origin — but the whole team workflow (PRs, labels, issue coordination) runs on
+# GitHub, so a remote repo is required. Offer to create it and push an initial
+# commit so `main` exists remotely. Must run BEFORE label bootstrap, which needs
+# the repo to already exist.
+# -----------------------------------------------------------------------------
+if [[ -n "$GITHUB_REPO" ]] && ! git remote get-url origin >/dev/null 2>&1; then
+  echo
+  echo "==> No 'origin' remote detected. Agents coordinate entirely through"
+  echo "    GitHub issues/PRs, so a remote repo is required."
+  if command -v gh >/dev/null 2>&1; then
+    read -rp "Create github.com/$GITHUB_REPO and push the initial commit? [Y/n]: " CREATE_REMOTE
+    if [[ "$CREATE_REMOTE" != "n" && "$CREATE_REMOTE" != "N" ]]; then
+      # gh repo create --push needs at least one commit on the branch.
+      if ! git rev-parse HEAD >/dev/null 2>&1; then
+        git add -A
+        git commit -m "chore: scaffold from claude-workflow template" >/dev/null
+      fi
+      gh repo create "$GITHUB_REPO" --private --source=. --remote=origin --push
+    fi
+  else
+    echo "    gh CLI not found. Install it, then run:"
+    echo "      gh repo create $GITHUB_REPO --private --source=. --remote=origin --push"
+  fi
+fi
+
 # Offer to bootstrap labels via gh CLI (delegates to bin/bootstrap-labels.sh,
 # which is also runnable standalone for recovery).
 if command -v gh >/dev/null 2>&1 && [[ -n "$GITHUB_REPO" ]]; then

@@ -20,7 +20,15 @@ rm -rf .git && git init -b main
 ./bin/init-project.sh
 ```
 
-`bin/init-project.sh` fills in `{{PROJECT_NAME}}` / `{{GITHUB_REPO}}` / `{{DEFAULT_BRANCH}}` / test+lint+dev+deploy commands across CLAUDE.md and the agent files, sanity-checks all 30+ scaffolds, offers to bootstrap GitHub labels, and creates a stub `bin/init.sh`. ~30 seconds of typing.
+`bin/init-project.sh` fills in `{{PROJECT_NAME}}` / `{{GITHUB_REPO}}` / `{{DEFAULT_BRANCH}}` / test+lint+dev+deploy commands across CLAUDE.md and the agent files, sanity-checks all 30+ scaffolds, and creates a stub `bin/init.sh`. ~30 seconds of typing.
+
+Because you wiped the template's git history in step 1, there is no `origin` remote — and the whole team workflow coordinates through GitHub issues and PRs. So the script also offers to **create your GitHub repo, set `origin`, push the initial commit, and bootstrap the labels**. This needs the `gh` CLI authenticated first:
+
+```bash
+gh auth login   # one-time, if you haven't already
+```
+
+If `gh` isn't installed, the script prints the exact `gh repo create …` command to run yourself.
 
 ```bash
 # 3. Open Claude Code and spawn the team
@@ -336,7 +344,7 @@ Skipping the gate without explicit operator override blocks the PR at review.
 ├── sandbox.json                  # OS-level isolation policy (FS + network allowlist)
 ├── .claude/
 │   ├── agents/                   # 10 role contracts (8 always-on + 2 on-demand)
-│   ├── skills/                   # 14 cross-agent skills (label-discipline, worktree-management, …)
+│   ├── skills/                   # 15 cross-agent skills (label-discipline, worktree-management, …)
 │   ├── commands/                 # 10 slash commands
 │   └── hooks/                    # 12 enforcement hooks
 │       ├── (5 PR-discipline + 1 worktree cleanup + 1 doc check)
